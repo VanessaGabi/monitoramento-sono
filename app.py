@@ -4,6 +4,7 @@ import cv2
 import mediapipe as mp
 import numpy as np
 import threading
+import os
 
 app = Flask(__name__)
 CORS(app)
@@ -24,7 +25,9 @@ face_mesh = mp_face_mesh.FaceMesh(refine_landmarks=True)
 olho_esquerdo = [33, 160, 158, 133, 153, 144]
 olho_direito = [362, 385, 387, 263, 373, 380]
 
+# ⚠️ Tenta abrir câmera (se não tiver, não quebra)
 camera = cv2.VideoCapture(0)
+camera_disponivel = camera.isOpened()
 
 
 def calcular_ear(pontos, frame, face_landmarks):
@@ -44,9 +47,12 @@ def calcular_ear(pontos, frame, face_landmarks):
     return vertical / horizontal
 
 
-# 🔥 IA rodando em background (SEM janela OpenCV)
 def processar_camera():
     global dados, contador_frames
+
+    if not camera_disponivel:
+        print("⚠️ Câmera não disponível (ambiente de deploy)")
+        return
 
     while True:
         success, frame = camera.read()
@@ -81,9 +87,9 @@ def processar_camera():
                     dados["nivel"] = "normal"
 
 
-# 🔥 STREAM PARA O FRONT (IMPORTANTE)
 def gerar_frames():
-    global camera
+    if not camera_disponivel:
+        return
 
     while True:
         success, frame = camera.read()
@@ -101,6 +107,9 @@ def gerar_frames():
 
 @app.route("/video")
 def video():
+    if not camera_disponivel:
+        return "Câmera não disponível no servidor", 503
+
     return Response(gerar_frames(),
                     mimetype='multipart/x-mixed-replace; boundary=frame')
 
@@ -111,8 +120,12 @@ def get_dados():
 
 
 if __name__ == "__main__":
-    thread = threading.Thread(target=processar_camera)
-    thread.daemon = True
-    thread.start()
+    if camera_disponivel:
+        thread = threading.Thread(target=processar_camera)
+        thread.daemon = True
+        thread.start()
+    else:
+        print("⚠️ Rodando sem câmera (modo servidor)")
 
-    app.run(host="127.0.0.1", port=5000, debug=False, threaded=True)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, debug=False, threaded=True)
