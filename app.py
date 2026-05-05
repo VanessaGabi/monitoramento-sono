@@ -1,10 +1,12 @@
 from flask import Flask, jsonify, Response
 from flask_cors import CORS
 import cv2
-import mediapipe as mp
 import numpy as np
 import threading
 import os
+
+# ✅ NOVO IMPORT CORRETO DO MEDIAPIPE
+from mediapipe.python.solutions.face_mesh import FaceMesh
 
 app = Flask(__name__)
 CORS(app)
@@ -19,13 +21,13 @@ contador_frames = 0
 LIMITE = 20
 EAR_LIMIAR = 0.20
 
-mp_face_mesh = mp.solutions.face_mesh
-face_mesh = mp_face_mesh.FaceMesh(refine_landmarks=True)
+# ✅ INICIALIZAÇÃO CORRETA
+face_mesh = FaceMesh(refine_landmarks=True)
 
 olho_esquerdo = [33, 160, 158, 133, 153, 144]
 olho_direito = [362, 385, 387, 263, 373, 380]
 
-# ⚠️ Tenta abrir câmera (se não tiver, não quebra)
+# ⚠️ CÂMERA (PODE NÃO EXISTIR NO SERVIDOR)
 camera = cv2.VideoCapture(0)
 camera_disponivel = camera.isOpened()
 
