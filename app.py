@@ -5,7 +5,7 @@ import numpy as np
 import threading
 import os
 
-# ✅ NOVO IMPORT CORRETO DO MEDIAPIPE
+# ✅ IMPORT CORRETO
 from mediapipe.python.solutions.face_mesh import FaceMesh
 
 app = Flask(__name__)
@@ -21,13 +21,19 @@ contador_frames = 0
 LIMITE = 20
 EAR_LIMIAR = 0.20
 
-# ✅ INICIALIZAÇÃO CORRETA
-face_mesh = FaceMesh(refine_landmarks=True)
+# ✅ INICIALIZAÇÃO MAIS SEGURA
+face_mesh = FaceMesh(
+    static_image_mode=False,
+    max_num_faces=1,
+    refine_landmarks=True,
+    min_detection_confidence=0.5,
+    min_tracking_confidence=0.5
+)
 
 olho_esquerdo = [33, 160, 158, 133, 153, 144]
 olho_direito = [362, 385, 387, 263, 373, 380]
 
-# ⚠️ CÂMERA (PODE NÃO EXISTIR NO SERVIDOR)
+# ⚠️ CÂMERA
 camera = cv2.VideoCapture(0)
 camera_disponivel = camera.isOpened()
 
@@ -53,7 +59,7 @@ def processar_camera():
     global dados, contador_frames
 
     if not camera_disponivel:
-        print("⚠️ Câmera não disponível (ambiente de deploy)")
+        print("⚠️ Câmera não disponível (deploy)")
         return
 
     while True:
@@ -63,6 +69,7 @@ def processar_camera():
 
         frame = cv2.flip(frame, 1)
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
         result = face_mesh.process(rgb)
 
         if result.multi_face_landmarks:
@@ -119,6 +126,11 @@ def video():
 @app.route("/dados")
 def get_dados():
     return jsonify(dados)
+
+
+@app.route("/")
+def home():
+    return "API de monitoramento de sono rodando 🚀"
 
 
 if __name__ == "__main__":
