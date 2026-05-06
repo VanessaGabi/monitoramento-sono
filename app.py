@@ -5,7 +5,7 @@ import numpy as np
 import threading
 import os
 
-# ✅ IMPORT CORRETO
+# ✅ MediaPipe corrigido
 from mediapipe.python.solutions.face_mesh import FaceMesh
 
 app = Flask(__name__)
@@ -21,7 +21,6 @@ contador_frames = 0
 LIMITE = 20
 EAR_LIMIAR = 0.20
 
-# ✅ INICIALIZAÇÃO MAIS SEGURA
 face_mesh = FaceMesh(
     static_image_mode=False,
     max_num_faces=1,
@@ -33,10 +32,9 @@ face_mesh = FaceMesh(
 olho_esquerdo = [33, 160, 158, 133, 153, 144]
 olho_direito = [362, 385, 387, 263, 373, 380]
 
-# ⚠️ CÂMERA
+# 🔴 Tenta abrir câmera (vai falhar no Render, e tá ok)
 camera = cv2.VideoCapture(0)
 camera_disponivel = camera.isOpened()
-
 
 def calcular_ear(pontos, frame, face_landmarks):
     h, w, _ = frame.shape
@@ -133,13 +131,15 @@ def home():
     return "API de monitoramento de sono rodando 🚀"
 
 
-if __name__ == "__main__":
-    if camera_disponivel:
-        thread = threading.Thread(target=processar_camera)
-        thread.daemon = True
-        thread.start()
-    else:
-        print("⚠️ Rodando sem câmera (modo servidor)")
+# ✅ AGORA RODA COM GUNICORN
+if camera_disponivel:
+    thread = threading.Thread(target=processar_camera)
+    thread.daemon = True
+    thread.start()
+else:
+    print("⚠️ Rodando sem câmera (modo servidor)")
 
+
+if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port, debug=False, threaded=True)
+    app.run(host="0.0.0.0", port=port)
