@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, Response
+from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
 import cv2
 import numpy as np
@@ -6,9 +6,6 @@ import threading
 import os
 import time
 
-# -----------------------
-# FLASK
-# -----------------------
 app = Flask(__name__)
 CORS(app)
 
@@ -26,12 +23,14 @@ LIMITE = 20
 EAR_LIMIAR = 0.20
 
 # -----------------------
-# MEDIA PIPE (CORRIGIDO)
+# MEDIA PIPE
 # -----------------------
 face_mesh = None
+mp = None
 
 try:
-    import mediapipe as mp
+    import mediapipe as mp_local
+    mp = mp_local
 
     mp_face_mesh = mp.solutions.face_mesh
 
@@ -46,7 +45,7 @@ try:
     print("MediaPipe carregado com sucesso")
 
 except Exception as e:
-    print("MediaPipe indisponível:", e)
+    print("MediaPipe falhou:", e)
     face_mesh = None
 
 # -----------------------
@@ -87,7 +86,7 @@ def processar_camera():
     global dados, contador_frames
 
     if not camera_disponivel or face_mesh is None:
-        print("Modo servidor: sem câmera ou MediaPipe")
+        print("Rodando sem câmera ou sem MediaPipe")
         return
 
     while True:
@@ -127,50 +126,22 @@ def processar_camera():
         time.sleep(0.03)
 
 # -----------------------
-# STREAM (OPCIONAL)
-# -----------------------
-def gerar_frames():
-    if not camera_disponivel:
-        return
-
-    while True:
-        success, frame = camera.read()
-        if not success:
-            continue
-
-        frame = cv2.flip(frame, 1)
-
-        _, buffer = cv2.imencode('.jpg', frame)
-        frame = buffer.tobytes()
-
-        yield (b'--frame\r\n'
-               b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
-
-# -----------------------
 # ROTAS
 # -----------------------
 @app.route("/")
 def home():
     return "API de monitoramento de sono rodando"
 
-
 @app.route("/dados")
 def get_dados():
     return jsonify(dados)
 
-
-@app.route("/video")
-def video():
-    if not camera_disponivel:
-        return "Camera nao disponivel no servidor", 503
-
-    return Response(
-        gerar_frames(),
-        mimetype='multipart/x-mixed-replace; boundary=frame'
-    )
+@app.route("/app")
+def app_front():
+    return send_from_directory("static", "index.html")
 
 # -----------------------
-# THREAD SEGURA
+# THREAD
 # -----------------------
 if camera_disponivel and face_mesh is not None:
     thread = threading.Thread(target=processar_camera)
@@ -178,7 +149,7 @@ if camera_disponivel and face_mesh is not None:
     thread.start()
 
 # -----------------------
-# RENDER FIX (PORTA CORRETA)
+# START
 # -----------------------
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))

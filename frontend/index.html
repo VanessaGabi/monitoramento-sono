@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Monitoramento de Sono</title>
+  <style>
+    body {
+      font-family: Arial;
+      background: #0f172a;
+      color: white;
+      text-align: center;
+      padding-top: 50px;
+    }
+
+    .card {
+      background: #1e293b;
+      padding: 20px;
+      margin: auto;
+      width: 300px;
+      border-radius: 12px;
+    }
+
+    .status {
+      font-size: 22px;
+      margin-top: 10px;
+    }
+
+    .critico { color: red; }
+    .atencao { color: orange; }
+    .normal { color: lightgreen; }
+  </style>
+</head>
+
+<body>
+  <h1>😴 Monitoramento de Sono</h1>
+
+  <div class="card">
+    <p>EAR:</p>
+    <h2 id="ear">0.0</h2>
+
+    <p>Status:</p>
+    <div id="nivel" class="status normal">normal</div>
+  </div>
+
+<script>
+async function atualizar() {
+  const res = await fetch('/dados');
+  const data = await res.json();
+
+  document.getElementById('ear').innerText = data.ear.toFixed(3);
+
+  const nivel = document.getElementById('nivel');
+  nivel.innerText = data.nivel;
+
+  nivel.className = "status " + data.nivel;
+}
+
+setInterval(atualizar, 1000);
+atualizar();
+</script>
+
+</body>
+</html>
+
+<body>
+
+<h1>😴 Monitoramento de Sonolência</h1>
+
+<div class="card">
+    <div>EAR</div>
+    <div id="ear" class="valor">0.0</div>
+
+    <div>Status</div>
+    <div id="status" class="status normal">normal</div>
+</div>
+
+<script>
+async function atualizar() {
+    const res = await fetch("/dados");
+    const data = await res.json();
+
+    document.getElementById("ear").innerText =
+        parseFloat(data.ear).toFixed(3);
+
+    const status = document.getElementById("status");
+    status.innerText = data.nivel;
+
+    status.className = "status " + data.nivel;
+}
+
+setInterval(atualizar, 1000);
+atualizar();
+</script>
+
+</body>
+</html>
