@@ -5,8 +5,8 @@ import numpy as np
 import threading
 import os
 
-# ✅ MediaPipe correto (VERSÃO NOVA)
-import mediapipe as mp
+# ✅ IMPORT COMPATÍVEL COM RENDER
+from mediapipe import solutions
 
 app = Flask(__name__)
 CORS(app)
@@ -21,8 +21,8 @@ contador_frames = 0
 LIMITE = 20
 EAR_LIMIAR = 0.20
 
-# ✅ NOVA FORMA DE INICIALIZAR
-mp_face_mesh = mp.solutions.face_mesh
+# ✅ MediaPipe correto
+mp_face_mesh = solutions.face_mesh
 
 face_mesh = mp_face_mesh.FaceMesh(
     static_image_mode=False,
@@ -134,7 +134,7 @@ def home():
     return "API de monitoramento de sono rodando"
 
 
-# ✅ Thread funciona com gunicorn
+# ✅ THREAD OK COM GUNICORN
 if camera_disponivel:
     thread = threading.Thread(target=processar_camera)
     thread.daemon = True
