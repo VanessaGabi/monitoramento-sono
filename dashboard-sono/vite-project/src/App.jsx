@@ -36,56 +36,73 @@ export default function App() {
     return () => clearInterval(interval);
   }, []);
 
-  const getStatusColor = () => {
-    if (dados.nivel === "critico") return "#ef4444";
-    if (dados.nivel === "atencao") return "#f59e0b";
-    return "#22c55e";
-  };
+  const statusColor =
+    dados.nivel === "critico"
+      ? "#ef4444"
+      : dados.nivel === "atencao"
+      ? "#f59e0b"
+      : "#22c55e";
 
   return (
     <div style={styles.page}>
       <div style={styles.container}>
 
-        <h1 style={styles.title}>😴 Sleep Monitor Dashboard</h1>
-        <p style={styles.subtitle}>Sistema de análise de sonolência em tempo real</p>
+        {/* HEADER */}
+        <h1 style={styles.title}>🧠 Hypnos AI Monitor</h1>
+        <p style={styles.subtitle}>
+          Sistema inteligente de detecção de sonolência em tempo real
+        </p>
+
+        {/* ALERTA */}
+        {dados.sonolencia && (
+          <div style={styles.alert}>
+            <AlertTriangle />
+            <span>ALERTA: Sonolência detectada — recomenda-se pausa</span>
+          </div>
+        )}
 
         {/* CARDS */}
         <div style={styles.cards}>
 
           <div style={styles.card}>
             <Eye color="#60a5fa" />
-            <p>EAR (Olhos)</p>
+            <p>EAR (Eye Ratio)</p>
             <h2>{dados.ear.toFixed(3)}</h2>
           </div>
 
           <div style={styles.card}>
-            <Activity color={getStatusColor()} />
-            <p>Status</p>
-            <h2 style={{ color: getStatusColor() }}>{dados.nivel}</h2>
+            <Activity color={statusColor} />
+            <p>Status do Sistema</p>
+            <h2 style={{ color: statusColor }}>
+              {dados.nivel.toUpperCase()}
+            </h2>
           </div>
 
           <div style={styles.card}>
             <AlertTriangle color={dados.sonolencia ? "#ef4444" : "#22c55e"} />
             <p>Sonolência</p>
-            <h2>{dados.sonolencia ? "DETECTADA" : "NORMAL"}</h2>
+            <h2>
+              {dados.sonolencia ? "DETECTADA" : "NORMAL"}
+            </h2>
           </div>
 
         </div>
 
-        {/* GRAFICO */}
+        {/* CHART */}
         <div style={styles.chartBox}>
-          <h3 style={{ marginBottom: 10 }}>Variação do EAR</h3>
+          <h3 style={styles.chartTitle}>Monitoramento em tempo real (EAR)</h3>
 
           <ResponsiveContainer width="100%" height={300}>
             <LineChart data={historico}>
-              <XAxis dataKey="time" stroke="#aaa" />
-              <YAxis stroke="#aaa" />
+              <XAxis dataKey="time" stroke="#94a3b8" />
+              <YAxis stroke="#94a3b8" />
               <Tooltip />
               <Line
                 type="monotone"
                 dataKey="ear"
                 stroke="#38bdf8"
                 strokeWidth={2}
+                dot={false}
               />
             </LineChart>
           </ResponsiveContainer>
@@ -96,30 +113,45 @@ export default function App() {
   );
 }
 
+/* ===================== STYLE ===================== */
+
 const styles = {
   page: {
-    background: "#0b1220",
     minHeight: "100vh",
-    padding: 20,
-    fontFamily: "Arial"
+    padding: 30,
+    fontFamily: "Inter, Arial",
+    background: "linear-gradient(135deg, #0b1220, #0f172a)"
   },
 
   container: {
-    maxWidth: 1000,
+    maxWidth: 1100,
     margin: "0 auto"
   },
 
   title: {
-    color: "white",
     textAlign: "center",
-    fontSize: 28,
+    color: "white",
+    fontSize: 34,
     marginBottom: 5
   },
 
   subtitle: {
     textAlign: "center",
     color: "#94a3b8",
-    marginBottom: 30
+    marginBottom: 25
+  },
+
+  alert: {
+    display: "flex",
+    gap: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    background: "#ef4444",
+    color: "white",
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 20,
+    fontWeight: "bold"
   },
 
   cards: {
@@ -130,18 +162,25 @@ const styles = {
   },
 
   card: {
-    background: "#111827",
+    background: "rgba(17, 24, 39, 0.7)",
+    backdropFilter: "blur(10px)",
     padding: 20,
-    borderRadius: 12,
+    borderRadius: 16,
     color: "white",
     textAlign: "center",
-    boxShadow: "0 0 10px rgba(0,0,0,0.3)"
+    boxShadow: "0 10px 30px rgba(0,0,0,0.4)",
+    transition: "0.3s"
   },
 
   chartBox: {
-    background: "#111827",
+    background: "rgba(17, 24, 39, 0.7)",
+    backdropFilter: "blur(10px)",
     padding: 20,
-    borderRadius: 12,
+    borderRadius: 16,
     color: "white"
+  },
+
+  chartTitle: {
+    marginBottom: 15
   }
 };
