@@ -4,13 +4,17 @@ import cv2
 import numpy as np
 import threading
 import os
+import time
 
-# ✅ IMPORT COMPATÍVEL COM RENDER
-from mediapipe import solutions
-
+# -----------------------
+# FLASK
+# -----------------------
 app = Flask(__name__)
 CORS(app)
 
+# -----------------------
+# DADOS
+# -----------------------
 dados = {
     "ear": 0.0,
     "sonolencia": False,
@@ -21,24 +25,45 @@ contador_frames = 0
 LIMITE = 20
 EAR_LIMIAR = 0.20
 
-# ✅ MediaPipe correto
-mp_face_mesh = solutions.face_mesh
+# -----------------------
+# MEDIA PIPE (CORRIGIDO)
+# -----------------------
+face_mesh = None
 
-face_mesh = mp_face_mesh.FaceMesh(
-    static_image_mode=False,
-    max_num_faces=1,
-    refine_landmarks=True,
-    min_detection_confidence=0.5,
-    min_tracking_confidence=0.5
-)
+try:
+    import mediapipe as mp
 
+    mp_face_mesh = mp.solutions.face_mesh
+
+    face_mesh = mp_face_mesh.FaceMesh(
+        static_image_mode=False,
+        max_num_faces=1,
+        refine_landmarks=True,
+        min_detection_confidence=0.5,
+        min_tracking_confidence=0.5
+    )
+
+    print("MediaPipe carregado com sucesso")
+
+except Exception as e:
+    print("MediaPipe indisponível:", e)
+    face_mesh = None
+
+# -----------------------
+# OLHOS
+# -----------------------
 olho_esquerdo = [33, 160, 158, 133, 153, 144]
 olho_direito = [362, 385, 387, 263, 373, 380]
 
+# -----------------------
+# CÂMERA
+# -----------------------
 camera = cv2.VideoCapture(0)
 camera_disponivel = camera.isOpened()
 
-
+# -----------------------
+# EAR
+# -----------------------
 def calcular_ear(pontos, frame, face_landmarks):
     h, w, _ = frame.shape
     coords = []
@@ -55,17 +80,20 @@ def calcular_ear(pontos, frame, face_landmarks):
 
     return vertical / horizontal
 
-
+# -----------------------
+# PROCESSAMENTO
+# -----------------------
 def processar_camera():
     global dados, contador_frames
 
-    if not camera_disponivel:
-        print("Camera nao disponivel (deploy)")
+    if not camera_disponivel or face_mesh is None:
+        print("Modo servidor: sem câmera ou MediaPipe")
         return
 
     while True:
         success, frame = camera.read()
         if not success:
+            time.sleep(0.1)
             continue
 
         frame = cv2.flip(frame, 1)
@@ -78,8 +106,8 @@ def processar_camera():
 
                 ear_esq = calcular_ear(olho_esquerdo, frame, face_landmarks)
                 ear_dir = calcular_ear(olho_direito, frame, face_landmarks)
-                ear = (ear_esq + ear_dir) / 2
 
+                ear = (ear_esq + ear_dir) / 2
                 dados["ear"] = float(ear)
 
                 if ear < EAR_LIMIAR:
@@ -96,7 +124,11 @@ def processar_camera():
                 else:
                     dados["nivel"] = "normal"
 
+        time.sleep(0.03)
 
+# -----------------------
+# STREAM (OPCIONAL)
+# -----------------------
 def gerar_frames():
     if not camera_disponivel:
         return
@@ -114,14 +146,12 @@ def gerar_frames():
         yield (b'--frame\r\n'
                b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
 
-
-@app.route("/video")
-def video():
-    if not camera_disponivel:
-        return "Camera nao disponivel no servidor", 503
-
-    return Response(gerar_frames(),
-                    mimetype='multipart/x-mixed-replace; boundary=frame')
+# -----------------------
+# ROTAS
+# -----------------------
+@app.route("/")
+def home():
+    return "API de monitoramento de sono rodando"
 
 
 @app.route("/dados")
@@ -129,20 +159,27 @@ def get_dados():
     return jsonify(dados)
 
 
-@app.route("/")
-def home():
-    return "API de monitoramento de sono rodando"
+@app.route("/video")
+def video():
+    if not camera_disponivel:
+        return "Camera nao disponivel no servidor", 503
 
+    return Response(
+        gerar_frames(),
+        mimetype='multipart/x-mixed-replace; boundary=frame'
+    )
 
-# ✅ THREAD OK COM GUNICORN
-if camera_disponivel:
+# -----------------------
+# THREAD SEGURA
+# -----------------------
+if camera_disponivel and face_mesh is not None:
     thread = threading.Thread(target=processar_camera)
     thread.daemon = True
     thread.start()
-else:
-    print("Rodando sem camera (modo servidor)")
 
-
+# -----------------------
+# RENDER FIX (PORTA CORRETA)
+# -----------------------
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
