@@ -5,8 +5,8 @@ import numpy as np
 import threading
 import os
 
-# ✅ MediaPipe corrigido
-from mediapipe.python.solutions.face_mesh import FaceMesh
+# ✅ MediaPipe correto (VERSÃO NOVA)
+import mediapipe as mp
 
 app = Flask(__name__)
 CORS(app)
@@ -21,7 +21,10 @@ contador_frames = 0
 LIMITE = 20
 EAR_LIMIAR = 0.20
 
-face_mesh = FaceMesh(
+# ✅ NOVA FORMA DE INICIALIZAR
+mp_face_mesh = mp.solutions.face_mesh
+
+face_mesh = mp_face_mesh.FaceMesh(
     static_image_mode=False,
     max_num_faces=1,
     refine_landmarks=True,
@@ -32,9 +35,9 @@ face_mesh = FaceMesh(
 olho_esquerdo = [33, 160, 158, 133, 153, 144]
 olho_direito = [362, 385, 387, 263, 373, 380]
 
-# 🔴 Tenta abrir câmera (vai falhar no Render, e tá ok)
 camera = cv2.VideoCapture(0)
 camera_disponivel = camera.isOpened()
+
 
 def calcular_ear(pontos, frame, face_landmarks):
     h, w, _ = frame.shape
@@ -57,7 +60,7 @@ def processar_camera():
     global dados, contador_frames
 
     if not camera_disponivel:
-        print("⚠️ Câmera não disponível (deploy)")
+        print("Camera nao disponivel (deploy)")
         return
 
     while True:
@@ -115,7 +118,7 @@ def gerar_frames():
 @app.route("/video")
 def video():
     if not camera_disponivel:
-        return "Câmera não disponível no servidor", 503
+        return "Camera nao disponivel no servidor", 503
 
     return Response(gerar_frames(),
                     mimetype='multipart/x-mixed-replace; boundary=frame')
@@ -128,16 +131,16 @@ def get_dados():
 
 @app.route("/")
 def home():
-    return "API de monitoramento de sono rodando 🚀"
+    return "API de monitoramento de sono rodando"
 
 
-# ✅ AGORA RODA COM GUNICORN
+# ✅ Thread funciona com gunicorn
 if camera_disponivel:
     thread = threading.Thread(target=processar_camera)
     thread.daemon = True
     thread.start()
 else:
-    print("⚠️ Rodando sem câmera (modo servidor)")
+    print("Rodando sem camera (modo servidor)")
 
 
 if __name__ == "__main__":
