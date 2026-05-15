@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
   Activity,
   Eye,
@@ -16,6 +16,7 @@ import {
 } from "recharts";
 
 export default function App() {
+
   const [dados, setDados] = useState({
     ear: 0.32,
     sonolencia: false,
@@ -24,45 +25,86 @@ export default function App() {
 
   const [historico, setHistorico] = useState([]);
 
+  const videoRef = useRef(null);
+
+  // =========================
+  // PROCESSAMENTO REAL
+  // =========================
+
   useEffect(() => {
-    const interval = setInterval(() => {
 
-      // DEMO
-      const earFake = Number((Math.random() * 0.25 + 0.15).toFixed(3));
+    const canvas = document.createElement("canvas");
 
-      const nivel =
-        earFake < 0.20
-          ? "critico"
-          : earFake < 0.26
-          ? "atencao"
-          : "normal";
+    const ctx = canvas.getContext("2d");
 
-      const sonolencia = earFake < 0.20;
+    const interval = setInterval(async () => {
 
-      const novoDado = {
-        ear: earFake,
-        nivel,
-        sonolencia
-      };
+      if (!videoRef.current) return;
 
-      setDados(novoDado);
+      if (!videoRef.current.videoWidth) return;
 
-      setHistorico(prev => {
-        const novo = [
-          ...prev,
+      canvas.width = videoRef.current.videoWidth;
+
+      canvas.height = videoRef.current.videoHeight;
+
+      ctx.drawImage(
+        videoRef.current,
+        0,
+        0,
+        canvas.width,
+        canvas.height
+      );
+
+      const image = canvas.toDataURL("image/jpeg");
+
+      try {
+
+        const res = await fetch(
+          "https://monitoramento-sono-1.onrender.com/processar",
           {
-            time: prev.length,
-            ear: earFake
-          }
-        ];
+            method: "POST",
 
-        return novo.slice(-20);
-      });
+            headers: {
+              "Content-Type": "application/json"
+            },
+
+            body: JSON.stringify({ image })
+          }
+        );
+
+        const data = await res.json();
+
+        setDados(data);
+
+        setHistorico(prev => {
+
+          const novo = [
+            ...prev,
+            {
+              time: prev.length,
+              ear: data.ear
+            }
+          ];
+
+          return novo.slice(-20);
+
+        });
+
+      } catch (err) {
+
+        console.log(err);
+
+      }
 
     }, 1000);
 
     return () => clearInterval(interval);
+
   }, []);
+
+  // =========================
+  // STATUS
+  // =========================
 
   const statusColor =
     dados.nivel === "critico"
@@ -82,7 +124,9 @@ export default function App() {
     <div style={styles.page}>
 
       {/* HEADER */}
+
       <div style={styles.header}>
+
         <h1 style={styles.title}>
           🧠 HYPNOS AI
         </h1>
@@ -90,12 +134,15 @@ export default function App() {
         <p style={styles.subtitle}>
           Sistema Inteligente de Monitoramento de Condutor
         </p>
+
       </div>
 
       {/* LAYOUT */}
+
       <div style={styles.layout}>
 
         {/* LEFT */}
+
         <div style={styles.cameraCard}>
 
           <div style={styles.cameraHeader}>
@@ -104,21 +151,11 @@ export default function App() {
           </div>
 
           {/* CAMERA */}
+
           <div style={styles.cameraBox}>
 
             <video
-              ref={(video) => {
-                if (video) {
-                  navigator.mediaDevices
-                    .getUserMedia({ video: true })
-                    .then((stream) => {
-                      video.srcObject = stream;
-                    })
-                    .catch((err) => {
-                      console.log(err);
-                    });
-                }
-              }}
+              ref={videoRef}
               autoPlay
               playsInline
               muted
@@ -133,13 +170,44 @@ export default function App() {
 
           </div>
 
+          {/* START CAMERA */}
+
+          <button
+            onClick={async () => {
+
+              try {
+
+                const stream =
+                  await navigator.mediaDevices.getUserMedia({
+                    video: true
+                  });
+
+                if (videoRef.current) {
+                  videoRef.current.srcObject = stream;
+                }
+
+              } catch (err) {
+
+                console.log(err);
+
+              }
+
+            }}
+            style={styles.startButton}
+          >
+            Ativar Câmera
+          </button>
+
           {/* RISCO */}
+
           <div style={{ marginTop: 25 }}>
+
             <p style={styles.riskText}>
               Nível de risco: {risk}%
             </p>
 
             <div style={styles.progressBg}>
+
               <div
                 style={{
                   ...styles.progressFill,
@@ -147,26 +215,34 @@ export default function App() {
                   background: statusColor
                 }}
               />
+
             </div>
+
           </div>
 
         </div>
 
         {/* RIGHT */}
+
         <div style={styles.rightPanel}>
 
           {/* ALERTA */}
+
           {dados.sonolencia && (
+
             <div style={styles.alert}>
               <AlertTriangle />
               ALERTA: Recomenda-se parar o veículo
             </div>
+
           )}
 
           {/* CARDS */}
+
           <div style={styles.cards}>
 
             <div style={styles.card}>
+
               <Eye color="#38bdf8" size={32} />
 
               <p style={styles.cardLabel}>
@@ -176,9 +252,11 @@ export default function App() {
               <h2 style={styles.cardValue}>
                 {dados.ear.toFixed(3)}
               </h2>
+
             </div>
 
             <div style={styles.card}>
+
               <Activity color={statusColor} size={32} />
 
               <p style={styles.cardLabel}>
@@ -193,11 +271,17 @@ export default function App() {
               >
                 {dados.nivel.toUpperCase()}
               </h2>
+
             </div>
 
             <div style={styles.card}>
+
               <AlertTriangle
-                color={dados.sonolencia ? "#ef4444" : "#22c55e"}
+                color={
+                  dados.sonolencia
+                    ? "#ef4444"
+                    : "#22c55e"
+                }
                 size={32}
               />
 
@@ -208,11 +292,13 @@ export default function App() {
               <h2 style={styles.cardValue}>
                 {dados.sonolencia ? "SIM" : "NÃO"}
               </h2>
+
             </div>
 
           </div>
 
           {/* CHART */}
+
           <div style={styles.chartCard}>
 
             <h3 style={styles.chartTitle}>
@@ -220,7 +306,9 @@ export default function App() {
             </h3>
 
             <ResponsiveContainer width="100%" height={320}>
+
               <LineChart data={historico}>
+
                 <XAxis
                   dataKey="time"
                   stroke="#64748b"
@@ -240,7 +328,9 @@ export default function App() {
                   strokeWidth={3}
                   dot={false}
                 />
+
               </LineChart>
+
             </ResponsiveContainer>
 
           </div>
@@ -256,6 +346,7 @@ export default function App() {
 /* ================= STYLES ================= */
 
 const styles = {
+
   page: {
     minHeight: "100vh",
     background:
@@ -319,6 +410,19 @@ const styles = {
     background:
       "linear-gradient(to bottom, transparent, rgba(56,189,248,0.08))",
     pointerEvents: "none"
+  },
+
+  startButton: {
+    width: "100%",
+    marginTop: 20,
+    padding: 14,
+    borderRadius: 14,
+    border: "none",
+    background: "#38bdf8",
+    color: "#020617",
+    fontWeight: "bold",
+    fontSize: 16,
+    cursor: "pointer"
   },
 
   rightPanel: {
