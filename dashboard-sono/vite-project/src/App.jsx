@@ -25,7 +25,49 @@ export default function App() {
 
   const [historico, setHistorico] = useState([]);
 
+  const [cameraAtiva, setCameraAtiva] = useState(false);
+
   const videoRef = useRef(null);
+
+  // =========================
+  // ATIVAR CAMERA
+  // =========================
+
+  const iniciarCamera = async () => {
+
+    try {
+
+      const stream =
+        await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: false
+        });
+
+      if (videoRef.current) {
+
+        videoRef.current.srcObject = stream;
+
+        videoRef.current.onloadedmetadata = async () => {
+
+          try {
+            await videoRef.current.play();
+            setCameraAtiva(true);
+          } catch (e) {
+            console.log(e);
+          }
+
+        };
+      }
+
+    } catch (err) {
+
+      console.log("Erro camera:", err);
+
+      alert(
+        "Não foi possível acessar a câmera."
+      );
+    }
+  };
 
   // =========================
   // PROCESSAMENTO REAL
@@ -41,7 +83,9 @@ export default function App() {
 
       if (!videoRef.current) return;
 
-      if (!videoRef.current.videoWidth) return;
+      if (!cameraAtiva) return;
+
+      if (videoRef.current.readyState !== 4) return;
 
       canvas.width = videoRef.current.videoWidth;
 
@@ -55,7 +99,10 @@ export default function App() {
         canvas.height
       );
 
-      const image = canvas.toDataURL("image/jpeg");
+      const image = canvas.toDataURL(
+        "image/jpeg",
+        0.7
+      );
 
       try {
 
@@ -92,7 +139,7 @@ export default function App() {
 
       } catch (err) {
 
-        console.log(err);
+        console.log("Erro API:", err);
 
       }
 
@@ -100,7 +147,7 @@ export default function App() {
 
     return () => clearInterval(interval);
 
-  }, []);
+  }, [cameraAtiva]);
 
   // =========================
   // STATUS
@@ -154,6 +201,19 @@ export default function App() {
 
           <div style={styles.cameraBox}>
 
+            {!cameraAtiva && (
+              <div style={styles.cameraPlaceholder}>
+                <Camera
+                  size={70}
+                  color="#38bdf8"
+                />
+
+                <p style={styles.cameraText}>
+                  Clique em "Ativar Câmera"
+                </p>
+              </div>
+            )}
+
             <video
               ref={videoRef}
               autoPlay
@@ -165,7 +225,10 @@ export default function App() {
                 objectFit: "cover",
                 position: "absolute",
                 inset: 0,
-                zIndex: 1
+                zIndex: 1,
+                display: cameraAtiva
+                  ? "block"
+                  : "none"
               }}
             />
 
@@ -181,29 +244,12 @@ export default function App() {
           {/* START CAMERA */}
 
           <button
-            onClick={async () => {
-
-              try {
-
-                const stream =
-                  await navigator.mediaDevices.getUserMedia({
-                    video: true
-                  });
-
-                if (videoRef.current) {
-                  videoRef.current.srcObject = stream;
-                }
-
-              } catch (err) {
-
-                console.log(err);
-
-              }
-
-            }}
+            onClick={iniciarCamera}
             style={styles.startButton}
           >
-            Ativar Câmera
+            {cameraAtiva
+              ? "Câmera Ativa"
+              : "Ativar Câmera"}
           </button>
 
           {/* RISCO */}
@@ -265,7 +311,10 @@ export default function App() {
 
             <div style={styles.card}>
 
-              <Activity color={statusColor} size={32} />
+              <Activity
+                color={statusColor}
+                size={32}
+              />
 
               <p style={styles.cardLabel}>
                 Status
@@ -298,7 +347,9 @@ export default function App() {
               </p>
 
               <h2 style={styles.cardValue}>
-                {dados.sonolencia ? "SIM" : "NÃO"}
+                {dados.sonolencia
+                  ? "SIM"
+                  : "NÃO"}
               </h2>
 
             </div>
@@ -313,7 +364,10 @@ export default function App() {
               Monitoramento EAR em Tempo Real
             </h3>
 
-            <ResponsiveContainer width="100%" height={320}>
+            <ResponsiveContainer
+              width="100%"
+              height={320}
+            >
 
               <LineChart data={historico}>
 
@@ -390,7 +444,8 @@ const styles = {
     borderRadius: 24,
     padding: 20,
     backdropFilter: "blur(10px)",
-    boxShadow: "0 10px 40px rgba(0,0,0,0.4)"
+    boxShadow:
+      "0 10px 40px rgba(0,0,0,0.4)"
   },
 
   cameraHeader: {
@@ -409,10 +464,24 @@ const styles = {
       "linear-gradient(180deg,#020617,#0f172a)",
     position: "relative",
     overflow: "hidden",
-    border: "1px solid rgba(56,189,248,0.2)",
+    border:
+      "1px solid rgba(56,189,248,0.2)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center"
+  },
+
+  cameraPlaceholder: {
+    zIndex: 3,
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: 15
+  },
+
+  cameraText: {
+    color: "#cbd5e1",
+    fontSize: 16
   },
 
   cameraOverlay: {
@@ -451,7 +520,8 @@ const styles = {
     alignItems: "center",
     gap: 10,
     fontWeight: "bold",
-    boxShadow: "0 0 20px rgba(239,68,68,0.5)"
+    boxShadow:
+      "0 0 20px rgba(239,68,68,0.5)"
   },
 
   cards: {
@@ -467,7 +537,8 @@ const styles = {
     textAlign: "center",
     color: "white",
     backdropFilter: "blur(10px)",
-    boxShadow: "0 10px 40px rgba(0,0,0,0.3)"
+    boxShadow:
+      "0 10px 40px rgba(0,0,0,0.3)"
   },
 
   cardLabel: {
@@ -486,7 +557,8 @@ const styles = {
     borderRadius: 24,
     padding: 25,
     backdropFilter: "blur(10px)",
-    boxShadow: "0 10px 40px rgba(0,0,0,0.3)"
+    boxShadow:
+      "0 10px 40px rgba(0,0,0,0.3)"
   },
 
   chartTitle: {
