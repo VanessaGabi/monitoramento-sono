@@ -24,7 +24,6 @@ export default function App() {
   });
 
   const [historico, setHistorico] = useState([]);
-
   const [cameraAtiva, setCameraAtiva] = useState(false);
 
   const videoRef = useRef(null);
@@ -46,42 +45,39 @@ export default function App() {
       if (videoRef.current) {
 
         videoRef.current.srcObject = stream;
-
         await videoRef.current.play();
 
         setCameraAtiva(true);
       }
 
     } catch (err) {
-
       console.log("Erro camera:", err);
-
-      alert(
-        "Não foi possível acessar a câmera."
-      );
+      alert("Não foi possível acessar a câmera.");
     }
   };
 
   // =========================
-  // PROCESSAMENTO REAL
+  // PROCESSAMENTO REAL (DEBUG ADICIONADO)
   // =========================
 
   useEffect(() => {
 
-    const canvas = document.createElement("canvas");
+    console.log("🟢 useEffect iniciado");
 
+    const canvas = document.createElement("canvas");
     const ctx = canvas.getContext("2d");
 
     const interval = setInterval(async () => {
 
+      console.log("🔁 loop ativo");
+
       if (!videoRef.current) return;
-
       if (!cameraAtiva) return;
-
       if (videoRef.current.readyState !== 4) return;
 
-      canvas.width = videoRef.current.videoWidth;
+      console.log("📸 enviando frame");
 
+      canvas.width = videoRef.current.videoWidth;
       canvas.height = videoRef.current.videoHeight;
 
       ctx.drawImage(
@@ -92,10 +88,7 @@ export default function App() {
         canvas.height
       );
 
-      const image = canvas.toDataURL(
-        "image/jpeg",
-        0.7
-      );
+      const image = canvas.toDataURL("image/jpeg", 0.7);
 
       try {
 
@@ -103,20 +96,16 @@ export default function App() {
           "https://monitoramento-sono-1.onrender.com/processar",
           {
             method: "POST",
-
             headers: {
               "Content-Type": "application/json"
             },
-
             body: JSON.stringify({ image })
           }
         );
 
         const data = await res.json();
 
-        // =========================
-        // CORREÇÃO DO CRASH
-        // =========================
+        console.log("📥 resposta recebida:", data);
 
         setDados({
           ear: data.ear ?? 0,
@@ -135,13 +124,10 @@ export default function App() {
           ];
 
           return novo.slice(-20);
-
         });
 
       } catch (err) {
-
-        console.log("Erro API:", err);
-
+        console.log("❌ Erro API:", err);
       }
 
     }, 1000);
@@ -171,26 +157,16 @@ export default function App() {
   return (
     <div style={styles.page}>
 
-      {/* HEADER */}
-
       <div style={styles.header}>
-
-        <h1 style={styles.title}>
-          🧠 HYPNOS AI
-        </h1>
-
+        <h1 style={styles.title}>🧠 HYPNOS AI</h1>
         <p style={styles.subtitle}>
           Sistema Inteligente de Monitoramento de Condutor
         </p>
-
       </div>
-
-      {/* LAYOUT */}
 
       <div style={styles.layout}>
 
         {/* LEFT */}
-
         <div style={styles.cameraCard}>
 
           <div style={styles.cameraHeader}>
@@ -198,17 +174,11 @@ export default function App() {
             <span>Transmissão OpenCV</span>
           </div>
 
-          {/* CAMERA */}
-
           <div style={styles.cameraBox}>
 
             {!cameraAtiva && (
               <div style={styles.cameraPlaceholder}>
-                <Camera
-                  size={70}
-                  color="#38bdf8"
-                />
-
+                <Camera size={70} color="#38bdf8" />
                 <p style={styles.cameraText}>
                   Clique em "Ativar Câmera"
                 </p>
@@ -224,35 +194,25 @@ export default function App() {
                 width: "100%",
                 height: "100%",
                 objectFit: "cover",
-                display: cameraAtiva
-                  ? "block"
-                  : "none"
+                display: cameraAtiva ? "block" : "none"
               }}
             />
 
           </div>
 
-          {/* START CAMERA */}
-
           <button
             onClick={iniciarCamera}
             style={styles.startButton}
           >
-            {cameraAtiva
-              ? "Câmera Ativa"
-              : "Ativar Câmera"}
+            {cameraAtiva ? "Câmera Ativa" : "Ativar Câmera"}
           </button>
 
-          {/* RISCO */}
-
           <div style={{ marginTop: 25 }}>
-
             <p style={styles.riskText}>
               Nível de risco: {risk}%
             </p>
 
             <div style={styles.progressBg}>
-
               <div
                 style={{
                   ...styles.progressFill,
@@ -260,120 +220,62 @@ export default function App() {
                   background: statusColor
                 }}
               />
-
             </div>
-
           </div>
 
         </div>
 
         {/* RIGHT */}
-
         <div style={styles.rightPanel}>
 
-          {/* ALERTA */}
-
           {dados.sonolencia && (
-
             <div style={styles.alert}>
               <AlertTriangle />
               ALERTA: Recomenda-se parar o veículo
             </div>
-
           )}
-
-          {/* CARDS */}
 
           <div style={styles.cards}>
 
             <div style={styles.card}>
-
               <Eye color="#38bdf8" size={32} />
-
-              <p style={styles.cardLabel}>
-                EAR (Olhos)
-              </p>
-
+              <p style={styles.cardLabel}>EAR (Olhos)</p>
               <h2 style={styles.cardValue}>
                 {Number(dados.ear ?? 0).toFixed(3)}
               </h2>
-
             </div>
 
             <div style={styles.card}>
-
-              <Activity
-                color={statusColor}
-                size={32}
-              />
-
-              <p style={styles.cardLabel}>
-                Status
-              </p>
-
-              <h2
-                style={{
-                  ...styles.cardValue,
-                  color: statusColor
-                }}
-              >
+              <Activity color={statusColor} size={32} />
+              <p style={styles.cardLabel}>Status</p>
+              <h2 style={{ ...styles.cardValue, color: statusColor }}>
                 {dados.nivel.toUpperCase()}
               </h2>
-
             </div>
 
             <div style={styles.card}>
-
               <AlertTriangle
-                color={
-                  dados.sonolencia
-                    ? "#ef4444"
-                    : "#22c55e"
-                }
+                color={dados.sonolencia ? "#ef4444" : "#22c55e"}
                 size={32}
               />
-
-              <p style={styles.cardLabel}>
-                Sonolência
-              </p>
-
+              <p style={styles.cardLabel}>Sonolência</p>
               <h2 style={styles.cardValue}>
-                {dados.sonolencia
-                  ? "SIM"
-                  : "NÃO"}
+                {dados.sonolencia ? "SIM" : "NÃO"}
               </h2>
-
             </div>
 
           </div>
 
-          {/* CHART */}
-
           <div style={styles.chartCard}>
-
             <h3 style={styles.chartTitle}>
               Monitoramento EAR em Tempo Real
             </h3>
 
-            <ResponsiveContainer
-              width="100%"
-              height={320}
-            >
-
+            <ResponsiveContainer width="100%" height={320}>
               <LineChart data={historico}>
-
-                <XAxis
-                  dataKey="time"
-                  stroke="#64748b"
-                />
-
-                <YAxis
-                  stroke="#64748b"
-                  domain={[0, 0.5]}
-                />
-
+                <XAxis dataKey="time" />
+                <YAxis domain={[0, 0.5]} />
                 <Tooltip />
-
                 <Line
                   type="monotone"
                   dataKey="ear"
@@ -381,11 +283,8 @@ export default function App() {
                   strokeWidth={3}
                   dot={false}
                 />
-
               </LineChart>
-
             </ResponsiveContainer>
-
           </div>
 
         </div>
@@ -395,175 +294,3 @@ export default function App() {
     </div>
   );
 }
-
-/* ================= STYLES ================= */
-
-const styles = {
-
-  page: {
-    minHeight: "100vh",
-    background:
-      "linear-gradient(135deg,#020617,#0f172a)",
-    padding: 30,
-    fontFamily: "Inter, Arial"
-  },
-
-  header: {
-    textAlign: "center",
-    marginBottom: 30
-  },
-
-  title: {
-    color: "white",
-    fontSize: 42,
-    marginBottom: 8
-  },
-
-  subtitle: {
-    color: "#94a3b8",
-    fontSize: 18
-  },
-
-  layout: {
-    display: "grid",
-    gridTemplateColumns: "350px 1fr",
-    gap: 25
-  },
-
-  cameraCard: {
-    background: "rgba(15,23,42,0.8)",
-    borderRadius: 24,
-    padding: 20,
-    backdropFilter: "blur(10px)",
-    boxShadow:
-      "0 10px 40px rgba(0,0,0,0.4)"
-  },
-
-  cameraHeader: {
-    display: "flex",
-    alignItems: "center",
-    gap: 10,
-    color: "white",
-    marginBottom: 20,
-    fontSize: 18
-  },
-
-  cameraBox: {
-    height: 420,
-    borderRadius: 20,
-    background:
-      "linear-gradient(180deg,#020617,#0f172a)",
-    position: "relative",
-    overflow: "hidden",
-    border:
-      "1px solid rgba(56,189,248,0.2)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center"
-  },
-
-  cameraPlaceholder: {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    gap: 15
-  },
-
-  cameraText: {
-    color: "#cbd5e1",
-    fontSize: 16
-  },
-
-  startButton: {
-    width: "100%",
-    marginTop: 20,
-    padding: 14,
-    borderRadius: 14,
-    border: "none",
-    background: "#38bdf8",
-    color: "#020617",
-    fontWeight: "bold",
-    fontSize: 16,
-    cursor: "pointer"
-  },
-
-  rightPanel: {
-    display: "flex",
-    flexDirection: "column",
-    gap: 20
-  },
-
-  alert: {
-    background: "#ef4444",
-    color: "white",
-    padding: 15,
-    borderRadius: 16,
-    display: "flex",
-    alignItems: "center",
-    gap: 10,
-    fontWeight: "bold",
-    boxShadow:
-      "0 0 20px rgba(239,68,68,0.5)"
-  },
-
-  cards: {
-    display: "grid",
-    gridTemplateColumns: "repeat(3,1fr)",
-    gap: 20
-  },
-
-  card: {
-    background: "rgba(15,23,42,0.8)",
-    borderRadius: 20,
-    padding: 25,
-    textAlign: "center",
-    color: "white",
-    backdropFilter: "blur(10px)",
-    boxShadow:
-      "0 10px 40px rgba(0,0,0,0.3)"
-  },
-
-  cardLabel: {
-    color: "#94a3b8",
-    marginTop: 12,
-    marginBottom: 8
-  },
-
-  cardValue: {
-    fontSize: 30,
-    fontWeight: "bold"
-  },
-
-  chartCard: {
-    background: "rgba(15,23,42,0.8)",
-    borderRadius: 24,
-    padding: 25,
-    backdropFilter: "blur(10px)",
-    boxShadow:
-      "0 10px 40px rgba(0,0,0,0.3)"
-  },
-
-  chartTitle: {
-    color: "white",
-    marginBottom: 20
-  },
-
-  riskText: {
-    color: "white",
-    marginBottom: 10,
-    fontWeight: "bold"
-  },
-
-  progressBg: {
-    width: "100%",
-    height: 16,
-    background: "#1e293b",
-    borderRadius: 999
-  },
-
-  progressFill: {
-    height: "100%",
-    borderRadius: 999,
-    transition: "0.5s"
-  }
-};
