@@ -47,16 +47,9 @@ export default function App() {
 
         videoRef.current.srcObject = stream;
 
-        videoRef.current.onloadedmetadata = async () => {
+        await videoRef.current.play();
 
-          try {
-            await videoRef.current.play();
-            setCameraAtiva(true);
-          } catch (e) {
-            console.log(e);
-          }
-
-        };
+        setCameraAtiva(true);
       }
 
     } catch (err) {
@@ -223,21 +216,14 @@ export default function App() {
                 width: "100%",
                 height: "100%",
                 objectFit: "cover",
-                position: "absolute",
-                inset: 0,
-                zIndex: 1,
+                borderRadius: "20px",
                 display: cameraAtiva
                   ? "block"
                   : "none"
               }}
             />
 
-            <div
-              style={{
-                ...styles.cameraOverlay,
-                zIndex: 2
-              }}
-            />
+            <div style={styles.cameraOverlay} />
 
           </div>
 
@@ -489,7 +475,8 @@ const styles = {
     inset: 0,
     background:
       "linear-gradient(to bottom, transparent, rgba(56,189,248,0.08))",
-    pointerEvents: "none"
+    pointerEvents: "none",
+    borderRadius: 20
   },
 
   startButton: {
