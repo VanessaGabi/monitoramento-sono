@@ -162,11 +162,19 @@ export default function App() {
               style={{
                 width: "100%",
                 height: "100%",
-                objectFit: "cover"
+                objectFit: "cover",
+                position: "absolute",
+                inset: 0,
+                zIndex: 1
               }}
             />
 
-            <div style={styles.cameraOverlay} />
+            <div
+              style={{
+                ...styles.cameraOverlay,
+                zIndex: 2
+              }}
+            />
 
           </div>
 
@@ -401,7 +409,10 @@ const styles = {
       "linear-gradient(180deg,#020617,#0f172a)",
     position: "relative",
     overflow: "hidden",
-    border: "1px solid rgba(56,189,248,0.2)"
+    border: "1px solid rgba(56,189,248,0.2)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center"
   },
 
   cameraOverlay: {
