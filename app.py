@@ -17,8 +17,11 @@ dados = {
 
 contador_frames = 0
 
-LIMITE = 20
-EAR_LIMIAR = 0.20
+# =========================
+# CORREÇÃO IMPORTANTE
+# =========================
+EAR_LIMIAR = 0.23
+LIMITE = 15
 
 # -----------------------
 # MEDIAPIPE
@@ -47,16 +50,11 @@ except Exception as e:
 
 
 # -----------------------
-# LANDMARKS OLHOS
+# OLHOS (LANDMARKS)
 # -----------------------
 
 OLHO_ESQ = [33, 160, 158, 133, 153, 144]
 OLHO_DIR = [362, 385, 387, 263, 373, 380]
-
-
-# -----------------------
-# SUAVIZAÇÃO EAR
-# -----------------------
 
 historico_ear = []
 MAX_HIST = 10
@@ -81,7 +79,6 @@ def calcular_ear(face, olho):
 
     vertical1 = calcular_distancia(p2, p6)
     vertical2 = calcular_distancia(p3, p5)
-
     horizontal = calcular_distancia(p1, p4)
 
     return (vertical1 + vertical2) / (2.0 * horizontal)
@@ -107,7 +104,7 @@ def app_front():
 
 
 # -----------------------
-# PROCESSAMENTO REAL + DEBUG
+# PROCESSAMENTO
 # -----------------------
 
 @app.route("/processar", methods=["POST"])
@@ -120,31 +117,22 @@ def processar():
     try:
         data = request.json["image"]
 
-        print("🟡 IMAGE RECEBIDA")
-        print("📦 TAMANHO DA IMAGEM:", len(data))
-
         encoded = data.split(",")[1]
-
         img_bytes = base64.b64decode(encoded)
-
         np_arr = np.frombuffer(img_bytes, np.uint8)
 
         frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
 
-        print("🟣 IMAGEM DECODIFICADA")
-
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
         results = face_mesh.process(rgb)
-
-        print("🧠 MEDIAPIPE EXECUTADO")
 
         # -----------------------
         # SEM ROSTO
         # -----------------------
         if not results.multi_face_landmarks:
 
-            print("👤 ROSTO: False")
+            print("👤 ROSTO NÃO DETECTADO")
 
             contador_frames = 0
             historico_ear = []
@@ -155,18 +143,13 @@ def processar():
 
             return jsonify(dados)
 
-        print("👤 ROSTO: True")
-
         face_landmarks = results.multi_face_landmarks[0]
 
         h, w, _ = frame.shape
 
         face = []
-
         for lm in face_landmarks.landmark:
-            x = int(lm.x * w)
-            y = int(lm.y * h)
-            face.append((x, y))
+            face.append((int(lm.x * w), int(lm.y * h)))
 
         # -----------------------
         # EAR
@@ -190,16 +173,16 @@ def processar():
 
         dados["ear"] = round(float(ear_suave), 3)
 
-        print("📊 EAR:", ear_suave)
+        print("📊 EAR:", ear_suave, "contador:", contador_frames)
 
         # -----------------------
-        # SONOLÊNCIA
+        # SONOLÊNCIA (CORRIGIDO)
         # -----------------------
 
         if ear_suave < EAR_LIMIAR:
             contador_frames += 1
         else:
-            contador_frames = 0
+            contador_frames = max(0, contador_frames - 1)
 
         if contador_frames >= LIMITE:
             dados["sonolencia"] = True
