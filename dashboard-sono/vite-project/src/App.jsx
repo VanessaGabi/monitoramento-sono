@@ -23,11 +23,17 @@ export default function App() {
     nivel: "normal"
   });
 
-  const [historico, setHistorico] = useState([]);
+  const [historico, setHistorico] = useState([
+    { time: 0, ear: 0 }
+  ]);
+
   const [cameraAtiva, setCameraAtiva] = useState(false);
 
   const videoRef = useRef(null);
 
+  // =========================
+  // CAMERA
+  // =========================
   const iniciarCamera = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -47,68 +53,84 @@ export default function App() {
     }
   };
 
+  // =========================
+  // LOOP DE PROCESSAMENTO (CORRIGIDO)
+  // =========================
   useEffect(() => {
-
     if (!cameraAtiva) return;
 
     const canvas = document.createElement("canvas");
     const ctx = canvas.getContext("2d");
 
-    const interval = setInterval(async () => {
+    let ativo = true;
+
+    const loop = async () => {
+      if (!ativo) return;
 
       const video = videoRef.current;
 
-      if (!video) return;
-      if (video.videoWidth === 0 || video.videoHeight === 0) return;
+      if (video && video.readyState >= 2) {
 
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
+        canvas.width = video.videoWidth || 640;
+        canvas.height = video.videoHeight || 480;
 
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-      const image = canvas.toDataURL("image/jpeg", 0.95);
+        const image = canvas.toDataURL("image/jpeg", 0.6);
 
-      try {
+        try {
+          const res = await fetch(
+            "https://monitoramento-sono-1.onrender.com/processar",
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ image })
+            }
+          );
 
-        const res = await fetch(
-          "https://monitoramento-sono-1.onrender.com/processar",
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ image })
+          const data = await res.json();
+
+          if (!data || data.erro) {
+            setTimeout(loop, 800);
+            return;
           }
-        );
 
-        const data = await res.json();
+          setDados({
+            ear: Number(data.ear ?? 0),
+            sonolencia: data.sonolencia ?? false,
+            nivel: data.nivel ?? "normal"
+          });
 
-        console.log("BACK:", data);
+          setHistorico(prev => {
+            const novo = [
+              ...prev,
+              {
+                time: prev.length,
+                ear: Number(data.ear ?? 0)
+              }
+            ];
+            return novo.slice(-30);
+          });
 
-        if (!data || data.erro) return;
-
-        setDados({
-          ear: data.ear ?? 0,
-          sonolencia: data.sonolencia ?? false,
-          nivel: data.nivel ?? "normal"
-        });
-
-        setHistorico(prev => {
-          const novo = [
-            ...prev,
-            { time: prev.length, ear: Number(data.ear ?? 0) }
-          ];
-          return novo.slice(-30);
-        });
-
-      } catch (err) {
-        console.log("Erro API:", err);
+        } catch (err) {
+          console.log("Erro API:", err);
+        }
       }
 
-    }, 800);
+      setTimeout(loop, 900);
+    };
 
-    return () => clearInterval(interval);
+    loop();
+
+    return () => {
+      ativo = false;
+    };
 
   }, [cameraAtiva]);
 
+  // =========================
+  // STATUS
+  // =========================
   const statusColor =
     dados.nivel === "critico"
       ? "#ef4444"
@@ -119,6 +141,7 @@ export default function App() {
   return (
     <div style={styles.page}>
 
+      {/* HEADER */}
       <div style={styles.header}>
         <h1 style={styles.title}>🧠 HYPNOS AI</h1>
         <p style={styles.subtitle}>
@@ -209,26 +232,28 @@ export default function App() {
 
           </div>
 
-          {/* 🔥 GRÁFICO RESTAURADO */}
+          {/* GRÁFICO */}
           <div style={styles.chartCard}>
             <h3 style={styles.chartTitle}>
               Monitoramento EAR em Tempo Real
             </h3>
 
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={historico}>
-                <XAxis dataKey="time" />
-                <YAxis domain={[0, 0.5]} />
-                <Tooltip />
-                <Line
-                  type="monotone"
-                  dataKey="ear"
-                  stroke="#38bdf8"
-                  strokeWidth={3}
-                  dot={false}
-                />
-              </LineChart>
-            </ResponsiveContainer>
+            <div style={{ width: "100%", height: 300 }}>
+              <ResponsiveContainer>
+                <LineChart data={historico}>
+                  <XAxis dataKey="time" />
+                  <YAxis domain={[0, 0.5]} />
+                  <Tooltip />
+                  <Line
+                    type="monotone"
+                    dataKey="ear"
+                    stroke="#38bdf8"
+                    strokeWidth={3}
+                    dot={false}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
 
           </div>
 
@@ -238,3 +263,117 @@ export default function App() {
     </div>
   );
 }
+
+/* =========================
+   STYLES
+========================= */
+
+const styles = {
+  page: {
+    minHeight: "100vh",
+    background: "linear-gradient(135deg,#020617,#0f172a)",
+    padding: 30,
+    fontFamily: "Arial"
+  },
+
+  header: {
+    textAlign: "center",
+    marginBottom: 30
+  },
+
+  title: {
+    color: "white",
+    fontSize: 42
+  },
+
+  subtitle: {
+    color: "#94a3b8",
+    fontSize: 18
+  },
+
+  layout: {
+    display: "grid",
+    gridTemplateColumns: "350px 1fr",
+    gap: 25
+  },
+
+  cameraCard: {
+    background: "rgba(15,23,42,0.8)",
+    borderRadius: 20,
+    padding: 20
+  },
+
+  cameraHeader: {
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+    color: "white",
+    marginBottom: 15
+  },
+
+  cameraBox: {
+    height: 420,
+    borderRadius: 20,
+    background: "#0f172a",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden"
+  },
+
+  cameraPlaceholder: {
+    textAlign: "center",
+    color: "#cbd5e1"
+  },
+
+  cameraText: {
+    marginTop: 10
+  },
+
+  startButton: {
+    width: "100%",
+    marginTop: 15,
+    padding: 12,
+    borderRadius: 10,
+    border: "none",
+    background: "#38bdf8",
+    cursor: "pointer"
+  },
+
+  rightPanel: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 20
+  },
+
+  alert: {
+    background: "#ef4444",
+    color: "white",
+    padding: 12,
+    borderRadius: 10
+  },
+
+  cards: {
+    display: "grid",
+    gridTemplateColumns: "repeat(3,1fr)",
+    gap: 15
+  },
+
+  card: {
+    background: "rgba(15,23,42,0.8)",
+    padding: 20,
+    borderRadius: 15,
+    color: "white",
+    textAlign: "center"
+  },
+
+  cardLabel: {
+    color: "#94a3b8",
+    marginTop: 10
+  },
+
+  cardValue: {
+    fontSize: 26,
+    fontWeight: "bold"
+  }
+};
