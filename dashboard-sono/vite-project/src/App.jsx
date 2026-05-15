@@ -49,13 +49,14 @@ export default function App() {
 
   useEffect(() => {
 
+    if (!cameraAtiva) return;
+
     const canvas = document.createElement("canvas");
     const ctx = canvas.getContext("2d");
 
     const interval = setInterval(async () => {
 
       if (!videoRef.current) return;
-      if (!cameraAtiva) return;
       if (videoRef.current.readyState !== 4) return;
 
       canvas.width = videoRef.current.videoWidth;
@@ -84,10 +85,13 @@ export default function App() {
           nivel: data.nivel ?? "normal"
         });
 
-        setHistorico(prev => [
-          ...prev,
-          { time: prev.length, ear: data.ear ?? 0 }
-        ].slice(-20));
+        setHistorico(prev => {
+          const novo = [
+            ...prev,
+            { time: prev.length, ear: data.ear ?? 0 }
+          ];
+          return novo.slice(-20);
+        });
 
       } catch (err) {
         console.log("Erro API:", err);
@@ -103,15 +107,8 @@ export default function App() {
     dados.nivel === "critico"
       ? "#ef4444"
       : dados.nivel === "atencao"
-      ? "#facc15"
-      : "#22c55e";
-
-  const risk =
-    dados.nivel === "critico"
-      ? 90
-      : dados.nivel === "atencao"
-      ? 55
-      : 15;
+        ? "#facc15"
+        : "#22c55e";
 
   return (
     <div style={styles.page}>
@@ -125,6 +122,7 @@ export default function App() {
 
       <div style={styles.layout}>
 
+        {/* CAMERA */}
         <div style={styles.cameraCard}>
 
           <div style={styles.cameraHeader}>
@@ -164,6 +162,7 @@ export default function App() {
 
         </div>
 
+        {/* DASHBOARD */}
         <div style={styles.rightPanel}>
 
           {dados.sonolencia && (
@@ -207,17 +206,15 @@ export default function App() {
         </div>
 
       </div>
-
     </div>
   );
 }
 
 /* =========================
-   STYLES (FALTAVA ISSO)
+   STYLES
 ========================= */
 
 const styles = {
-
   page: {
     minHeight: "100vh",
     background: "linear-gradient(135deg,#020617,#0f172a)",
