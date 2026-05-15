@@ -27,7 +27,7 @@ export default function App() {
   useEffect(() => {
     const interval = setInterval(() => {
 
-      // ================= DEMO =================
+      // DEMO
       const earFake = Number((Math.random() * 0.25 + 0.15).toFixed(3));
 
       const nivel =
@@ -103,20 +103,34 @@ export default function App() {
             <span>Transmissão OpenCV</span>
           </div>
 
+          {/* CAMERA */}
           <div style={styles.cameraBox}>
+
+            <video
+              ref={(video) => {
+                if (video) {
+                  navigator.mediaDevices
+                    .getUserMedia({ video: true })
+                    .then((stream) => {
+                      video.srcObject = stream;
+                    })
+                    .catch((err) => {
+                      console.log(err);
+                    });
+                }
+              }}
+              autoPlay
+              playsInline
+              muted
+              style={{
+                width: "100%",
+                height: "100%",
+                objectFit: "cover"
+              }}
+            />
+
             <div style={styles.cameraOverlay} />
 
-            <div style={styles.cameraContent}>
-              <Camera size={70} color="#38bdf8" />
-
-              <h2 style={{ marginTop: 20 }}>
-                Camera Offline
-              </h2>
-
-              <p style={{ color: "#94a3b8" }}>
-                Simulação em nuvem ativa
-              </p>
-            </div>
           </div>
 
           {/* RISCO */}
@@ -135,6 +149,7 @@ export default function App() {
               />
             </div>
           </div>
+
         </div>
 
         {/* RIGHT */}
@@ -302,17 +317,8 @@ const styles = {
     position: "absolute",
     inset: 0,
     background:
-      "linear-gradient(to bottom, transparent, rgba(56,189,248,0.08))"
-  },
-
-  cameraContent: {
-    position: "absolute",
-    inset: 0,
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    justifyContent: "center",
-    color: "white"
+      "linear-gradient(to bottom, transparent, rgba(56,189,248,0.08))",
+    pointerEvents: "none"
   },
 
   rightPanel: {
