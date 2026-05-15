@@ -55,6 +55,14 @@ OLHO_DIR = [362, 385, 387, 263, 373, 380]
 
 
 # -----------------------
+# SUAVIZAÇÃO EAR (NOVO)
+# -----------------------
+
+historico_ear = []
+MAX_HIST = 10
+
+
+# -----------------------
 # FUNÇÕES EAR
 # -----------------------
 
@@ -76,9 +84,7 @@ def calcular_ear(face, olho):
 
     horizontal = calcular_distancia(p1, p4)
 
-    ear = (vertical1 + vertical2) / (2.0 * horizontal)
-
-    return ear
+    return (vertical1 + vertical2) / (2.0 * horizontal)
 
 
 # -----------------------
@@ -107,10 +113,9 @@ def app_front():
 @app.route("/processar", methods=["POST"])
 def processar():
 
-    global dados, contador_frames
+    global dados, contador_frames, historico_ear
 
     try:
-
         data = request.json["image"]
 
         encoded = data.split(",")[1]
@@ -125,53 +130,81 @@ def processar():
 
         results = face_mesh.process(rgb)
 
-        if results.multi_face_landmarks:
+        # -----------------------
+        # SEM ROSTO
+        # -----------------------
+        if not results.multi_face_landmarks:
 
-            face_landmarks = results.multi_face_landmarks[0]
+            contador_frames = 0
+            historico_ear = []
 
-            h, w, _ = frame.shape
+            dados["ear"] = 0.0
+            dados["sonolencia"] = False
+            dados["nivel"] = "sem rosto"
 
-            face = []
+            return jsonify(dados)
 
-            for lm in face_landmarks.landmark:
+        face_landmarks = results.multi_face_landmarks[0]
 
-                x = int(lm.x * w)
-                y = int(lm.y * h)
+        h, w, _ = frame.shape
 
-                face.append((x, y))
+        face = []
 
-            ear_esq = calcular_ear(face, OLHO_ESQ)
+        for lm in face_landmarks.landmark:
+            x = int(lm.x * w)
+            y = int(lm.y * h)
+            face.append((x, y))
 
-            ear_dir = calcular_ear(face, OLHO_DIR)
+        # -----------------------
+        # EAR
+        # -----------------------
 
-            ear = (ear_esq + ear_dir) / 2.0
+        ear_esq = calcular_ear(face, OLHO_ESQ)
+        ear_dir = calcular_ear(face, OLHO_DIR)
 
-            dados["ear"] = round(float(ear), 3)
+        ear = (ear_esq + ear_dir) / 2.0
 
-            # -----------------------
-            # SONOLÊNCIA
-            # -----------------------
+        # -----------------------
+        # SUAVIZAÇÃO DO EAR
+        # -----------------------
 
-            if ear < EAR_LIMIAR:
-                contador_frames += 1
-            else:
-                contador_frames = 0
+        historico_ear.append(ear)
 
-            dados["sonolencia"] = contador_frames >= LIMITE
+        if len(historico_ear) > MAX_HIST:
+            historico_ear.pop(0)
 
-            if dados["sonolencia"]:
-                dados["nivel"] = "critico"
+        ear_suave = sum(historico_ear) / len(historico_ear)
 
-            elif ear < EAR_LIMIAR:
-                dados["nivel"] = "atencao"
+        dados["ear"] = round(float(ear_suave), 3)
 
-            else:
-                dados["nivel"] = "normal"
+        # -----------------------
+        # SONOLÊNCIA (COM CONTADOR)
+        # -----------------------
+
+        if ear_suave < EAR_LIMIAR:
+            contador_frames += 1
+        else:
+            contador_frames = 0
+
+        # -----------------------
+        # NÍVEIS MAIS CONSISTENTES
+        # -----------------------
+
+        if contador_frames >= LIMITE:
+            dados["sonolencia"] = True
+            dados["nivel"] = "critico"
+
+        elif contador_frames > 0:
+            dados["sonolencia"] = False
+            dados["nivel"] = "atencao"
+
+        else:
+            dados["sonolencia"] = False
+            dados["nivel"] = "normal"
 
         return jsonify(dados)
 
     except Exception as e:
-
         print(e)
 
         return jsonify({
@@ -189,5 +222,6 @@ if __name__ == "__main__":
 
     app.run(
         host="0.0.0.0",
-        port=port
+        port=port,
+        debug=True
     )
