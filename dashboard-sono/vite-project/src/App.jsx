@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from "react";
+
 import {
   Activity,
   Eye,
@@ -39,11 +40,7 @@ export default function App() {
 
       const stream =
         await navigator.mediaDevices.getUserMedia({
-          video: {
-            width: 1280,
-            height: 720,
-            facingMode: "user"
-          },
+          video: true,
           audio: false
         });
 
@@ -54,16 +51,17 @@ export default function App() {
         await videoRef.current.play();
 
         setCameraAtiva(true);
+
       }
 
     } catch (err) {
 
       console.log("Erro camera:", err);
 
-      alert(
-        "Não foi possível acessar a câmera."
-      );
+      alert("Não foi possível acessar a câmera.");
+
     }
+
   };
 
   // =========================
@@ -165,6 +163,7 @@ export default function App() {
       : 15;
 
   return (
+
     <div style={styles.page}>
 
       {/* HEADER */}
@@ -199,7 +198,9 @@ export default function App() {
           <div style={styles.cameraBox}>
 
             {!cameraAtiva && (
+
               <div style={styles.cameraPlaceholder}>
+
                 <Camera
                   size={70}
                   color="#38bdf8"
@@ -208,7 +209,9 @@ export default function App() {
                 <p style={styles.cameraText}>
                   Clique em "Ativar Câmera"
                 </p>
+
               </div>
+
             )}
 
             <video
@@ -216,35 +219,27 @@ export default function App() {
               autoPlay
               playsInline
               muted
-              controls={false}
-              disablePictureInPicture
               style={{
                 width: "100%",
                 height: "100%",
                 objectFit: "cover",
-                position: "absolute",
-                inset: 0,
-                zIndex: 1,
-                display: cameraAtiva
-                  ? "block"
-                  : "none",
-                backgroundColor: "#000"
+                borderRadius: 20
               }}
             />
 
-            <div style={styles.cameraOverlay} />
-
           </div>
 
-          {/* START CAMERA */}
+          {/* BUTTON */}
 
           <button
             onClick={iniciarCamera}
             style={styles.startButton}
           >
+
             {cameraAtiva
               ? "Câmera Ativa"
               : "Ativar Câmera"}
+
           </button>
 
           {/* RISCO */}
@@ -292,7 +287,10 @@ export default function App() {
 
             <div style={styles.card}>
 
-              <Eye color="#38bdf8" size={32} />
+              <Eye
+                color="#38bdf8"
+                size={32}
+              />
 
               <p style={styles.cardLabel}>
                 EAR (Olhos)
@@ -397,7 +395,9 @@ export default function App() {
       </div>
 
     </div>
+
   );
+
 }
 
 /* ================= STYLES ================= */
@@ -455,9 +455,7 @@ const styles = {
   cameraBox: {
     height: 420,
     borderRadius: 20,
-    background:
-      "linear-gradient(180deg,#020617,#0f172a)",
-    position: "relative",
+    background: "#000",
     overflow: "hidden",
     border:
       "1px solid rgba(56,189,248,0.2)",
@@ -467,7 +465,8 @@ const styles = {
   },
 
   cameraPlaceholder: {
-    zIndex: 3,
+    position: "absolute",
+    zIndex: 2,
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
@@ -477,15 +476,6 @@ const styles = {
   cameraText: {
     color: "#cbd5e1",
     fontSize: 16
-  },
-
-  cameraOverlay: {
-    position: "absolute",
-    inset: 0,
-    background:
-      "linear-gradient(to bottom, transparent, rgba(56,189,248,0.08))",
-    pointerEvents: "none",
-    borderRadius: 20
   },
 
   startButton: {
@@ -580,4 +570,5 @@ const styles = {
     borderRadius: 999,
     transition: "0.5s"
   }
+
 };
