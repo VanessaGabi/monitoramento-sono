@@ -55,7 +55,7 @@ OLHO_DIR = [362, 385, 387, 263, 373, 380]
 
 
 # -----------------------
-# SUAVIZAÇÃO EAR (NOVO)
+# SUAVIZAÇÃO EAR
 # -----------------------
 
 historico_ear = []
@@ -107,7 +107,7 @@ def app_front():
 
 
 # -----------------------
-# PROCESSAMENTO REAL
+# PROCESSAMENTO REAL + DEBUG
 # -----------------------
 
 @app.route("/processar", methods=["POST"])
@@ -115,8 +115,13 @@ def processar():
 
     global dados, contador_frames, historico_ear
 
+    print("\n🔵 REQUEST RECEBIDA")
+
     try:
         data = request.json["image"]
+
+        print("🟡 IMAGE RECEBIDA")
+        print("📦 TAMANHO DA IMAGEM:", len(data))
 
         encoded = data.split(",")[1]
 
@@ -126,14 +131,20 @@ def processar():
 
         frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
 
+        print("🟣 IMAGEM DECODIFICADA")
+
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
         results = face_mesh.process(rgb)
+
+        print("🧠 MEDIAPIPE EXECUTADO")
 
         # -----------------------
         # SEM ROSTO
         # -----------------------
         if not results.multi_face_landmarks:
+
+            print("👤 ROSTO: False")
 
             contador_frames = 0
             historico_ear = []
@@ -143,6 +154,8 @@ def processar():
             dados["nivel"] = "sem rosto"
 
             return jsonify(dados)
+
+        print("👤 ROSTO: True")
 
         face_landmarks = results.multi_face_landmarks[0]
 
@@ -165,7 +178,7 @@ def processar():
         ear = (ear_esq + ear_dir) / 2.0
 
         # -----------------------
-        # SUAVIZAÇÃO DO EAR
+        # SUAVIZAÇÃO
         # -----------------------
 
         historico_ear.append(ear)
@@ -177,18 +190,16 @@ def processar():
 
         dados["ear"] = round(float(ear_suave), 3)
 
+        print("📊 EAR:", ear_suave)
+
         # -----------------------
-        # SONOLÊNCIA (COM CONTADOR)
+        # SONOLÊNCIA
         # -----------------------
 
         if ear_suave < EAR_LIMIAR:
             contador_frames += 1
         else:
             contador_frames = 0
-
-        # -----------------------
-        # NÍVEIS MAIS CONSISTENTES
-        # -----------------------
 
         if contador_frames >= LIMITE:
             dados["sonolencia"] = True
@@ -205,7 +216,7 @@ def processar():
         return jsonify(dados)
 
     except Exception as e:
-        print(e)
+        print("❌ ERRO:", e)
 
         return jsonify({
             "erro": str(e)
