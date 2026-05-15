@@ -1,5 +1,4 @@
 import { useEffect, useState, useRef } from "react";
-
 import {
   Activity,
   Eye,
@@ -19,7 +18,7 @@ import {
 export default function App() {
 
   const [dados, setDados] = useState({
-    ear: 0.32,
+    ear: 0,
     sonolencia: false,
     nivel: "normal"
   });
@@ -51,17 +50,16 @@ export default function App() {
         await videoRef.current.play();
 
         setCameraAtiva(true);
-
       }
 
     } catch (err) {
 
       console.log("Erro camera:", err);
 
-      alert("Não foi possível acessar a câmera.");
-
+      alert(
+        "Não foi possível acessar a câmera."
+      );
     }
-
   };
 
   // =========================
@@ -116,7 +114,15 @@ export default function App() {
 
         const data = await res.json();
 
-        setDados(data);
+        // =========================
+        // CORREÇÃO DO CRASH
+        // =========================
+
+        setDados({
+          ear: data.ear ?? 0,
+          sonolencia: data.sonolencia ?? false,
+          nivel: data.nivel ?? "normal"
+        });
 
         setHistorico(prev => {
 
@@ -124,7 +130,7 @@ export default function App() {
             ...prev,
             {
               time: prev.length,
-              ear: data.ear
+              ear: data.ear ?? 0
             }
           ];
 
@@ -163,7 +169,6 @@ export default function App() {
       : 15;
 
   return (
-
     <div style={styles.page}>
 
       {/* HEADER */}
@@ -198,9 +203,7 @@ export default function App() {
           <div style={styles.cameraBox}>
 
             {!cameraAtiva && (
-
               <div style={styles.cameraPlaceholder}>
-
                 <Camera
                   size={70}
                   color="#38bdf8"
@@ -209,9 +212,7 @@ export default function App() {
                 <p style={styles.cameraText}>
                   Clique em "Ativar Câmera"
                 </p>
-
               </div>
-
             )}
 
             <video
@@ -223,23 +224,23 @@ export default function App() {
                 width: "100%",
                 height: "100%",
                 objectFit: "cover",
-                borderRadius: 20
+                display: cameraAtiva
+                  ? "block"
+                  : "none"
               }}
             />
 
           </div>
 
-          {/* BUTTON */}
+          {/* START CAMERA */}
 
           <button
             onClick={iniciarCamera}
             style={styles.startButton}
           >
-
             {cameraAtiva
               ? "Câmera Ativa"
               : "Ativar Câmera"}
-
           </button>
 
           {/* RISCO */}
@@ -287,17 +288,14 @@ export default function App() {
 
             <div style={styles.card}>
 
-              <Eye
-                color="#38bdf8"
-                size={32}
-              />
+              <Eye color="#38bdf8" size={32} />
 
               <p style={styles.cardLabel}>
                 EAR (Olhos)
               </p>
 
               <h2 style={styles.cardValue}>
-                {dados.ear.toFixed(3)}
+                {Number(dados.ear ?? 0).toFixed(3)}
               </h2>
 
             </div>
@@ -395,9 +393,7 @@ export default function App() {
       </div>
 
     </div>
-
   );
-
 }
 
 /* ================= STYLES ================= */
@@ -455,7 +451,9 @@ const styles = {
   cameraBox: {
     height: 420,
     borderRadius: 20,
-    background: "#000",
+    background:
+      "linear-gradient(180deg,#020617,#0f172a)",
+    position: "relative",
     overflow: "hidden",
     border:
       "1px solid rgba(56,189,248,0.2)",
@@ -465,8 +463,6 @@ const styles = {
   },
 
   cameraPlaceholder: {
-    position: "absolute",
-    zIndex: 2,
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
@@ -570,5 +566,4 @@ const styles = {
     borderRadius: 999,
     transition: "0.5s"
   }
-
 };
