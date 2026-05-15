@@ -39,7 +39,11 @@ export default function App() {
 
       const stream =
         await navigator.mediaDevices.getUserMedia({
-          video: true,
+          video: {
+            width: 1280,
+            height: 720,
+            facingMode: "user"
+          },
           audio: false
         });
 
@@ -212,14 +216,19 @@ export default function App() {
               autoPlay
               playsInline
               muted
+              controls={false}
+              disablePictureInPicture
               style={{
                 width: "100%",
                 height: "100%",
                 objectFit: "cover",
-                borderRadius: "20px",
+                position: "absolute",
+                inset: 0,
+                zIndex: 1,
                 display: cameraAtiva
                   ? "block"
-                  : "none"
+                  : "none",
+                backgroundColor: "#000"
               }}
             />
 
