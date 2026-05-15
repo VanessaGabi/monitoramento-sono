@@ -56,15 +56,17 @@ export default function App() {
 
     const interval = setInterval(async () => {
 
-      if (!videoRef.current) return;
-      if (videoRef.current.readyState !== 4) return;
+      const video = videoRef.current;
 
-      canvas.width = videoRef.current.videoWidth;
-      canvas.height = videoRef.current.videoHeight;
+      if (!video) return;
+      if (video.videoWidth === 0 || video.videoHeight === 0) return;
 
-      ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
 
-      const image = canvas.toDataURL("image/jpeg", 0.7);
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      const image = canvas.toDataURL("image/jpeg", 0.95);
 
       try {
 
@@ -79,6 +81,10 @@ export default function App() {
 
         const data = await res.json();
 
+        console.log("BACK:", data);
+
+        if (!data || data.erro) return;
+
         setDados({
           ear: data.ear ?? 0,
           sonolencia: data.sonolencia ?? false,
@@ -88,16 +94,16 @@ export default function App() {
         setHistorico(prev => {
           const novo = [
             ...prev,
-            { time: prev.length, ear: data.ear ?? 0 }
+            { time: prev.length, ear: Number(data.ear ?? 0) }
           ];
-          return novo.slice(-20);
+          return novo.slice(-30);
         });
 
       } catch (err) {
         console.log("Erro API:", err);
       }
 
-    }, 1000);
+    }, 800);
 
     return () => clearInterval(interval);
 
@@ -203,123 +209,32 @@ export default function App() {
 
           </div>
 
+          {/* 🔥 GRÁFICO RESTAURADO */}
+          <div style={styles.chartCard}>
+            <h3 style={styles.chartTitle}>
+              Monitoramento EAR em Tempo Real
+            </h3>
+
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={historico}>
+                <XAxis dataKey="time" />
+                <YAxis domain={[0, 0.5]} />
+                <Tooltip />
+                <Line
+                  type="monotone"
+                  dataKey="ear"
+                  stroke="#38bdf8"
+                  strokeWidth={3}
+                  dot={false}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+
+          </div>
+
         </div>
 
       </div>
     </div>
   );
 }
-
-/* =========================
-   STYLES
-========================= */
-
-const styles = {
-  page: {
-    minHeight: "100vh",
-    background: "linear-gradient(135deg,#020617,#0f172a)",
-    padding: 30,
-    fontFamily: "Arial"
-  },
-
-  header: {
-    textAlign: "center",
-    marginBottom: 30
-  },
-
-  title: {
-    color: "white",
-    fontSize: 42
-  },
-
-  subtitle: {
-    color: "#94a3b8",
-    fontSize: 18
-  },
-
-  layout: {
-    display: "grid",
-    gridTemplateColumns: "350px 1fr",
-    gap: 25
-  },
-
-  cameraCard: {
-    background: "rgba(15,23,42,0.8)",
-    borderRadius: 20,
-    padding: 20
-  },
-
-  cameraHeader: {
-    display: "flex",
-    alignItems: "center",
-    gap: 10,
-    color: "white",
-    marginBottom: 15
-  },
-
-  cameraBox: {
-    height: 420,
-    borderRadius: 20,
-    background: "#0f172a",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    overflow: "hidden"
-  },
-
-  cameraPlaceholder: {
-    textAlign: "center",
-    color: "#cbd5e1"
-  },
-
-  cameraText: {
-    marginTop: 10
-  },
-
-  startButton: {
-    width: "100%",
-    marginTop: 15,
-    padding: 12,
-    borderRadius: 10,
-    border: "none",
-    background: "#38bdf8",
-    cursor: "pointer"
-  },
-
-  rightPanel: {
-    display: "flex",
-    flexDirection: "column",
-    gap: 20
-  },
-
-  alert: {
-    background: "#ef4444",
-    color: "white",
-    padding: 12,
-    borderRadius: 10
-  },
-
-  cards: {
-    display: "grid",
-    gridTemplateColumns: "repeat(3,1fr)",
-    gap: 15
-  },
-
-  card: {
-    background: "rgba(15,23,42,0.8)",
-    padding: 20,
-    borderRadius: 15,
-    color: "white",
-    textAlign: "center"
-  },
-
-  cardLabel: {
-    color: "#94a3b8",
-    marginTop: 10
-  },
-
-  cardValue: {
-    fontSize: 26,
-    fontWeight: "bold"
-  }
-};
