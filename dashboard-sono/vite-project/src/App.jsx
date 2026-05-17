@@ -12,8 +12,7 @@ import {
   Line,
   XAxis,
   YAxis,
-  Tooltip,
-  ResponsiveContainer
+  Tooltip
 } from "recharts";
 
 export default function App() {
@@ -34,7 +33,7 @@ export default function App() {
   const videoRef = useRef(null);
 
   // =========================
-  // INICIAR CAMERA
+  // CAMERA
   // =========================
 
   const iniciarCamera = async () => {
@@ -128,58 +127,44 @@ export default function App() {
           const image =
             canvas.toDataURL(
               "image/jpeg",
-              0.7
+              0.9
             );
 
           // =========================
-          // ENVIA PARA BACKEND
+          // ENVIA BACKEND
           // =========================
 
-          const response =
-            await fetch(
-              "https://monitoramento-sono-1.onrender.com/processar",
-              {
-                method: "POST",
+          const response = await fetch(
+            "https://monitoramento-sono-1.onrender.com/processar",
+            {
+              method: "POST",
 
-                headers: {
-                  "Content-Type":
-                    "application/json"
-                },
+              headers: {
+                "Content-Type":
+                  "application/json"
+              },
 
-                body: JSON.stringify({
-                  image
-                })
-              }
-            );
+              body: JSON.stringify({
+                image
+              })
+            }
+          );
 
-          // =========================
-          // ERRO HTTP
-          // =========================
-
-          if (!response.ok) {
-
-            console.log(
-              "Erro HTTP:",
-              response.status
-            );
-
-            return;
-          }
-
-          // =========================
-          // DADOS
-          // =========================
+          console.log(
+            "STATUS:",
+            response.status
+          );
 
           const data =
             await response.json();
 
           console.log(
-            "BACK:",
+            "DATA:",
             data
           );
 
           // =========================
-          // ERRO BACKEND
+          // ERRO API
           // =========================
 
           if (data.erro) {
@@ -192,13 +177,11 @@ export default function App() {
           } else {
 
             // =========================
-            // EAR
+            // ATUALIZA DASHBOARD
             // =========================
 
             const ear =
-              Number(
-                data.ear ?? 0
-              );
+              Number(data.ear ?? 0);
 
             setDados({
               ear,
@@ -263,7 +246,7 @@ export default function App() {
 
       setTimeout(
         processar,
-        120
+        400
       );
     };
 
@@ -481,7 +464,7 @@ export default function App() {
 
             </div>
 
-            {/* SONOLÊNCIA */}
+            {/* SONO */}
 
             <div style={styles.card}>
 
@@ -526,35 +509,33 @@ export default function App() {
               }}
             >
 
-              <ResponsiveContainer>
+              <LineChart
+                width={700}
+                height={300}
+                data={historico}
+              >
 
-                <LineChart
-                  data={historico}
-                >
+                <XAxis
+                  dataKey="time"
+                  stroke="#64748b"
+                />
 
-                  <XAxis
-                    dataKey="time"
-                    stroke="#64748b"
-                  />
+                <YAxis
+                  domain={[0, 0.5]}
+                  stroke="#64748b"
+                />
 
-                  <YAxis
-                    domain={[0, 0.5]}
-                    stroke="#64748b"
-                  />
+                <Tooltip />
 
-                  <Tooltip />
+                <Line
+                  type="monotone"
+                  dataKey="ear"
+                  stroke="#38bdf8"
+                  strokeWidth={3}
+                  dot={false}
+                />
 
-                  <Line
-                    type="monotone"
-                    dataKey="ear"
-                    stroke="#38bdf8"
-                    strokeWidth={3}
-                    dot={false}
-                  />
-
-                </LineChart>
-
-              </ResponsiveContainer>
+              </LineChart>
 
             </div>
 
@@ -659,10 +640,7 @@ const styles = {
     color: "white",
     padding: 12,
     borderRadius: 10,
-    fontWeight: "bold",
-    display: "flex",
-    alignItems: "center",
-    gap: 10
+    fontWeight: "bold"
   },
 
   cards: {
