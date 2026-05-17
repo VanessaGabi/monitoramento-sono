@@ -1,64 +1,85 @@
-import { useEffect, useState, useRef } from "react";
+"use client";
 
-import {
-  Activity,
-  Eye,
-  AlertTriangle,
-  Camera
-} from "lucide-react";
-
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  Tooltip
-} from "recharts";
+import { useEffect, useRef, useState } from "react";
 
 export default function App() {
 
-  const [dados, setDados] = useState({
-    ear: 0,
-    sonolencia: false,
-    nivel: "normal"
-  });
+  // =====================================
+  // STATES
+  // =====================================
 
-  const [historico, setHistorico] = useState([]);
+  const [mounted, setMounted] =
+    useState(false);
 
   const [cameraAtiva, setCameraAtiva] =
+    useState(false);
+
+  const [loading, setLoading] =
     useState(false);
 
   const [erroApi, setErroApi] =
     useState(false);
 
+  const [dados, setDados] =
+    useState({
+      ear: 0,
+      sonolencia: false,
+      nivel: "normal"
+    });
+
+  // =====================================
+  // REFS
+  // =====================================
+
   const videoRef = useRef(null);
 
-  // =========================
+  // =====================================
+  // EVITA HYDRATION ERROR
+  // =====================================
+
+  useEffect(() => {
+
+    setMounted(true);
+
+  }, []);
+
+  // =====================================
   // INICIAR CAMERA
-  // =========================
+  // =====================================
 
   const iniciarCamera = async () => {
 
     try {
 
+      setLoading(true);
+
       const stream =
         await navigator.mediaDevices.getUserMedia({
-          video: true,
+          video: {
+            width: 640,
+            height: 480,
+            facingMode: "user"
+          },
           audio: false
         });
 
       if (videoRef.current) {
 
-        videoRef.current.srcObject = stream;
+        videoRef.current.srcObject =
+          stream;
 
         await videoRef.current.play();
 
         setCameraAtiva(true);
       }
 
+      setLoading(false);
+
     } catch (err) {
 
       console.log(err);
+
+      setLoading(false);
 
       alert(
         "Erro ao acessar câmera"
@@ -66,9 +87,9 @@ export default function App() {
     }
   };
 
-  // =========================
+  // =====================================
   // LOOP IA
-  // =========================
+  // =====================================
 
   useEffect(() => {
 
@@ -92,7 +113,8 @@ export default function App() {
 
         if (
           video &&
-          video.readyState === 4
+          video.readyState === 4 &&
+          video.videoWidth > 0
         ) {
 
           canvas.width = 640;
@@ -106,11 +128,19 @@ export default function App() {
             480
           );
 
+          // ==========================
+          // COMPRESSÃO
+          // ==========================
+
           const image =
             canvas.toDataURL(
               "image/jpeg",
-              0.7
+              0.5
             );
+
+          // ==========================
+          // API
+          // ==========================
 
           const response =
             await fetch(
@@ -129,67 +159,76 @@ export default function App() {
               }
             );
 
+          // ==========================
+          // VERIFICA API
+          // ==========================
+
+          if (!response.ok) {
+
+            throw new Error(
+              "Erro API"
+            );
+          }
+
           const data =
             await response.json();
 
-          console.log(data);
+          console.log("API:", data);
 
-          if (!data.erro) {
+          // ==========================
+          // ATUALIZA
+          // ==========================
 
-            setErroApi(false);
+          setErroApi(false);
 
-            const ear =
-              Number(data.ear || 0);
+          setDados({
+            ear:
+              Number(data.ear || 0),
 
-            setDados({
-              ear,
-              sonolencia:
-                data.sonolencia,
-              nivel:
-                data.nivel
-            });
+            sonolencia:
+              data.sonolencia || false,
 
-            setHistorico(prev => {
-
-              const novo = [
-                ...prev,
-                {
-                  time: prev.length,
-                  ear
-                }
-              ];
-
-              return novo.slice(-25);
-            });
-
-          } else {
-
-            setErroApi(true);
-          }
+            nivel:
+              data.nivel || "normal"
+          });
 
         }
 
       } catch (err) {
 
-        console.log(err);
+        console.log(
+          "ERRO:",
+          err
+        );
 
         setErroApi(true);
       }
 
-      setTimeout(processar, 700);
+      // ==========================
+      // LOOP CONTROLADO
+      // ==========================
+
+      if (ativo) {
+
+        setTimeout(
+          processar,
+          1200
+        );
+      }
     };
 
     processar();
 
     return () => {
+
       ativo = false;
     };
 
   }, [cameraAtiva]);
 
-  // =========================
-  // STATUS
-  // =========================
+  // =====================================
+  // STATUS COLOR
+  // =====================================
 
   const statusColor =
 
@@ -199,9 +238,22 @@ export default function App() {
       ? "#facc15"
       : "#22c55e";
 
+  // =====================================
+  // EVITA ERRO REACT 418
+  // =====================================
+
+  if (!mounted) {
+
+    return null;
+  }
+
+  // =====================================
+  // UI
+  // =====================================
+
   return (
 
-    <div style={styles.page}>
+    <main style={styles.page}>
 
       {/* HEADER */}
 
@@ -212,13 +264,13 @@ export default function App() {
         </h1>
 
         <p style={styles.subtitle}>
-          Monitoramento Inteligente
-          de Sonolência
+          Sistema Inteligente de
+          Monitoramento de Sonolência
         </p>
 
       </div>
 
-      {/* GRID */}
+      {/* LAYOUT */}
 
       <div style={styles.layout}>
 
@@ -232,13 +284,12 @@ export default function App() {
 
               <div style={styles.placeholder}>
 
-                <Camera
-                  size={60}
-                  color="#38bdf8"
-                />
+                <h2>
+                  Câmera Desativada
+                </h2>
 
                 <p>
-                  Clique para iniciar
+                  Clique abaixo para iniciar
                 </p>
 
               </div>
@@ -263,12 +314,17 @@ export default function App() {
 
           </div>
 
+          {/* BOTÃO */}
+
           <button
             onClick={iniciarCamera}
+            disabled={loading}
             style={styles.button}
           >
 
-            {cameraAtiva
+            {loading
+              ? "Carregando..."
+              : cameraAtiva
               ? "Câmera Ativa"
               : "Ativar Câmera"}
 
@@ -278,7 +334,7 @@ export default function App() {
 
         {/* DASHBOARD */}
 
-        <div style={styles.right}>
+        <div style={styles.dashboard}>
 
           {/* ALERTA */}
 
@@ -286,9 +342,7 @@ export default function App() {
 
             <div style={styles.alerta}>
 
-              <AlertTriangle />
-
-              SONOLÊNCIA DETECTADA
+              ⚠ SONOLÊNCIA DETECTADA
 
             </div>
 
@@ -298,9 +352,9 @@ export default function App() {
 
           {erroApi && (
 
-            <div style={styles.apiErro}>
+            <div style={styles.erroApi}>
 
-              Backend desconectado
+              API desconectada
 
             </div>
 
@@ -310,80 +364,60 @@ export default function App() {
 
           <div style={styles.cards}>
 
+            {/* EAR */}
+
             <div style={styles.card}>
 
-              <Eye
-                color="#38bdf8"
-              />
+              <p style={styles.cardLabel}>
+                EAR
+              </p>
 
-              <p>EAR</p>
+              <h2 style={styles.cardValue}>
 
-              <h2>
                 {dados.ear.toFixed(3)}
+
               </h2>
 
             </div>
 
+            {/* STATUS */}
+
             <div style={styles.card}>
 
-              <Activity
-                color={statusColor}
-              />
-
-              <p>Status</p>
+              <p style={styles.cardLabel}>
+                STATUS
+              </p>
 
               <h2
                 style={{
+                  ...styles.cardValue,
                   color: statusColor
                 }}
               >
 
-                {dados.nivel}
+                {dados.nivel.toUpperCase()}
 
               </h2>
 
             </div>
 
-          </div>
+            {/* SONOLENCIA */}
 
-          {/* GRAFICO */}
+            <div style={styles.card}>
 
-          <div style={styles.chartCard}>
+              <p style={styles.cardLabel}>
+                SONOLÊNCIA
+              </p>
 
-            <h3 style={{
-              color: "white",
-              marginBottom: 20
-            }}>
-              EAR em Tempo Real
-            </h3>
+              <h2 style={styles.cardValue}>
 
-            <LineChart
-              width={700}
-              height={300}
-              data={historico}
-            >
+                {dados.sonolencia
+                  ? "SIM"
+                  : "NÃO"}
 
-              <XAxis
-                dataKey="time"
-                stroke="#94a3b8"
-              />
+              </h2>
 
-              <YAxis
-                domain={[0, 0.5]}
-                stroke="#94a3b8"
-              />
-
-              <Tooltip />
-
-              <Line
-                type="monotone"
-                dataKey="ear"
-                stroke="#38bdf8"
-                strokeWidth={3}
-                dot={false}
-              />
-
-            </LineChart>
+            </div>
 
           </div>
 
@@ -391,13 +425,13 @@ export default function App() {
 
       </div>
 
-    </div>
+    </main>
   );
 }
 
-// =========================
+// =====================================
 // STYLES
-// =========================
+// =====================================
 
 const styles = {
 
@@ -416,17 +450,19 @@ const styles = {
 
   title: {
     color: "white",
-    fontSize: 42
+    fontSize: 42,
+    marginBottom: 10
   },
 
   subtitle: {
-    color: "#94a3b8"
+    color: "#94a3b8",
+    fontSize: 18
   },
 
   layout: {
     display: "grid",
     gridTemplateColumns:
-      "350px 1fr",
+      "400px 1fr",
     gap: 20
   },
 
@@ -438,8 +474,9 @@ const styles = {
   },
 
   cameraBox: {
-    height: 420,
-    background: "#0f172a",
+    width: "100%",
+    height: 450,
+    background: "#111827",
     borderRadius: 20,
     overflow: "hidden",
     display: "flex",
@@ -448,22 +485,24 @@ const styles = {
   },
 
   placeholder: {
-    color: "white",
-    textAlign: "center"
+    textAlign: "center",
+    color: "white"
   },
 
   button: {
     width: "100%",
     marginTop: 15,
-    padding: 12,
+    padding: 14,
+    borderRadius: 12,
     border: "none",
-    borderRadius: 10,
     background: "#38bdf8",
+    color: "#000",
     fontWeight: "bold",
-    cursor: "pointer"
+    cursor: "pointer",
+    fontSize: 16
   },
 
-  right: {
+  dashboard: {
     display: "flex",
     flexDirection: "column",
     gap: 20
@@ -471,19 +510,17 @@ const styles = {
 
   alerta: {
     background: "#ef4444",
-    padding: 14,
-    borderRadius: 10,
+    padding: 16,
+    borderRadius: 12,
     color: "white",
     fontWeight: "bold",
-    display: "flex",
-    gap: 10,
-    alignItems: "center"
+    fontSize: 18
   },
 
-  apiErro: {
+  erroApi: {
     background: "#f59e0b",
-    padding: 10,
-    borderRadius: 10,
+    padding: 16,
+    borderRadius: 12,
     color: "white",
     fontWeight: "bold"
   },
@@ -491,25 +528,28 @@ const styles = {
   cards: {
     display: "grid",
     gridTemplateColumns:
-      "repeat(2,1fr)",
+      "repeat(3,1fr)",
     gap: 15
   },
 
   card: {
     background:
       "rgba(15,23,42,0.8)",
-    padding: 20,
-    borderRadius: 15,
-    color: "white",
+    padding: 25,
+    borderRadius: 16,
     textAlign: "center"
   },
 
-  chartCard: {
-    background:
-      "rgba(15,23,42,0.8)",
-    padding: 20,
-    borderRadius: 20,
-    overflowX: "auto"
+  cardLabel: {
+    color: "#94a3b8",
+    marginBottom: 10,
+    fontSize: 14
+  },
+
+  cardValue: {
+    color: "white",
+    fontSize: 28,
+    fontWeight: "bold"
   }
 
 };
