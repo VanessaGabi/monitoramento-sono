@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from "react";
+
 import {
   Activity,
   Eye,
@@ -27,12 +28,13 @@ export default function App() {
     { time: 0, ear: 0 }
   ]);
 
-  const [cameraAtiva, setCameraAtiva] = useState(false);
+  const [cameraAtiva, setCameraAtiva] =
+    useState(false);
 
   const videoRef = useRef(null);
 
   // =========================
-  // CAMERA
+  // INICIAR CAMERA
   // =========================
 
   const iniciarCamera = async () => {
@@ -51,7 +53,8 @@ export default function App() {
 
       if (videoRef.current) {
 
-        videoRef.current.srcObject = stream;
+        videoRef.current.srcObject =
+          stream;
 
         await videoRef.current.play();
 
@@ -60,7 +63,10 @@ export default function App() {
 
     } catch (err) {
 
-      console.log("Erro camera:", err);
+      console.log(
+        "Erro camera:",
+        err
+      );
 
       alert(
         "Não foi possível acessar a câmera."
@@ -116,42 +122,64 @@ export default function App() {
           );
 
           // =========================
-          // QUALIDADE MAIOR
+          // IMAGEM
           // =========================
 
           const image =
             canvas.toDataURL(
               "image/jpeg",
-              0.9
+              0.7
             );
 
           // =========================
-          // ENVIA BACKEND
+          // ENVIA PARA BACKEND
           // =========================
 
-          const response = await fetch(
-            "https://monitoramento-sono-1.onrender.com/processar",
-            {
-              method: "POST",
+          const response =
+            await fetch(
+              "https://monitoramento-sono-1.onrender.com/processar",
+              {
+                method: "POST",
 
-              headers: {
-                "Content-Type":
-                  "application/json"
-              },
+                headers: {
+                  "Content-Type":
+                    "application/json"
+                },
 
-              body: JSON.stringify({
-                image
-              })
-            }
-          );
+                body: JSON.stringify({
+                  image
+                })
+              }
+            );
+
+          // =========================
+          // ERRO HTTP
+          // =========================
+
+          if (!response.ok) {
+
+            console.log(
+              "Erro HTTP:",
+              response.status
+            );
+
+            return;
+          }
+
+          // =========================
+          // DADOS
+          // =========================
 
           const data =
             await response.json();
 
-          console.log("BACK:", data);
+          console.log(
+            "BACK:",
+            data
+          );
 
           // =========================
-          // ERRO API
+          // ERRO BACKEND
           // =========================
 
           if (data.erro) {
@@ -164,11 +192,13 @@ export default function App() {
           } else {
 
             // =========================
-            // ATUALIZA DASHBOARD
+            // EAR
             // =========================
 
             const ear =
-              Number(data.ear ?? 0);
+              Number(
+                data.ear ?? 0
+              );
 
             setDados({
               ear,
@@ -231,7 +261,10 @@ export default function App() {
       // LOOP CONTÍNUO
       // =========================
 
-      setTimeout(processar, 400);
+      setTimeout(
+        processar,
+        120
+      );
     };
 
     processar();
@@ -448,7 +481,7 @@ export default function App() {
 
             </div>
 
-            {/* SONO */}
+            {/* SONOLÊNCIA */}
 
             <div style={styles.card}>
 
@@ -626,7 +659,10 @@ const styles = {
     color: "white",
     padding: 12,
     borderRadius: 10,
-    fontWeight: "bold"
+    fontWeight: "bold",
+    display: "flex",
+    alignItems: "center",
+    gap: 10
   },
 
   cards: {
