@@ -32,9 +32,7 @@ face_mesh = None
 
 try:
 
-    import mediapipe as mp
-
-    mp_face_mesh = mp.solutions.face_mesh
+    from mediapipe.python.solutions import face_mesh as mp_face_mesh
 
     face_mesh = mp_face_mesh.FaceMesh(
         static_image_mode=False,
@@ -44,7 +42,7 @@ try:
         min_tracking_confidence=0.5
     )
 
-    print("MediaPipe carregado")
+    print("MediaPipe carregado com sucesso")
 
 except Exception as e:
 
