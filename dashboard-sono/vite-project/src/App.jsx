@@ -1,5 +1,3 @@
-"use client";
-
 import {
   useEffect,
   useRef,
@@ -52,15 +50,15 @@ function Main() {
         setCameraAtiva(true);
       }
 
-      setLoading(false);
-
     } catch (err) {
 
       console.log(err);
 
-      setLoading(false);
-
       alert("Erro ao acessar câmera");
+
+    } finally {
+
+      setLoading(false);
     }
   };
 
@@ -107,7 +105,7 @@ function Main() {
           const image =
             canvas.toDataURL(
               "image/jpeg",
-              0.5
+              0.6
             );
 
           const response =
@@ -127,6 +125,17 @@ function Main() {
               }
             );
 
+          // =========================
+          // VALIDA RESPONSE
+          // =========================
+
+          if (!response.ok) {
+
+            throw new Error(
+              "Erro na API"
+            );
+          }
+
           const data =
             await response.json();
 
@@ -141,7 +150,9 @@ function Main() {
                 Number(data.ear || 0),
 
               sonolencia:
-                data.sonolencia || false,
+                Boolean(
+                  data.sonolencia
+                ),
 
               nivel:
                 data.nivel || "normal",
@@ -151,7 +162,6 @@ function Main() {
 
             setErroApi(true);
           }
-
         }
 
       } catch (err) {
@@ -161,17 +171,50 @@ function Main() {
         setErroApi(true);
       }
 
-      setTimeout(processar, 1000);
+      // =========================
+      // LOOP
+      // =========================
+
+      if (ativo) {
+
+        setTimeout(
+          processar,
+          1000
+        );
+      }
     };
 
     processar();
 
+    // =========================
+    // CLEANUP
+    // =========================
+
     return () => {
 
       ativo = false;
+
+      if (
+        videoRef.current &&
+        videoRef.current.srcObject
+      ) {
+
+        const tracks =
+          videoRef.current
+            .srcObject
+            .getTracks();
+
+        tracks.forEach(
+          (track) => track.stop()
+        );
+      }
     };
 
   }, [cameraAtiva]);
+
+  // =========================
+  // STATUS COLOR
+  // =========================
 
   const statusColor =
 
@@ -189,11 +232,38 @@ function Main() {
         HYPNOS AI
       </h1>
 
+      <p style={styles.subtitle}>
+        Sistema Inteligente de
+        Monitoramento de Sonolência
+      </p>
+
       <div style={styles.cameraBox}>
 
         {!cameraAtiva && (
+
           <div style={styles.placeholder}>
-            Câmera desligada
+
+            <div>
+
+              <p
+                style={{
+                  fontSize: 22,
+                  marginBottom: 10,
+                }}
+              >
+                Câmera Desativada
+              </p>
+
+              <p
+                style={{
+                  opacity: 0.7,
+                }}
+              >
+                Clique abaixo para iniciar
+              </p>
+
+            </div>
+
           </div>
         )}
 
@@ -217,8 +287,18 @@ function Main() {
 
       <button
         onClick={iniciarCamera}
-        style={styles.button}
-        disabled={loading || cameraAtiva}
+        style={{
+          ...styles.button,
+
+          opacity:
+            loading ||
+            cameraAtiva
+              ? 0.7
+              : 1,
+        }}
+        disabled={
+          loading || cameraAtiva
+        }
       >
 
         {loading
@@ -230,6 +310,7 @@ function Main() {
       </button>
 
       {erroApi && (
+
         <div style={styles.erro}>
           API desconectada
         </div>
@@ -238,18 +319,26 @@ function Main() {
       <div style={styles.cards}>
 
         <div style={styles.card}>
-          <p>EAR</p>
 
-          <h2>
+          <p style={styles.cardLabel}>
+            EAR
+          </p>
+
+          <h2 style={styles.cardValue}>
             {dados.ear.toFixed(3)}
           </h2>
+
         </div>
 
         <div style={styles.card}>
-          <p>STATUS</p>
+
+          <p style={styles.cardLabel}>
+            STATUS
+          </p>
 
           <h2
             style={{
+              ...styles.cardValue,
               color: statusColor,
             }}
           >
@@ -259,12 +348,17 @@ function Main() {
         </div>
 
         <div style={styles.card}>
-          <p>SONOLÊNCIA</p>
 
-          <h2>
+          <p style={styles.cardLabel}>
+            SONOLÊNCIA
+          </p>
+
+          <h2 style={styles.cardValue}>
+
             {dados.sonolencia
               ? "SIM"
               : "NÃO"}
+
           </h2>
 
         </div>
@@ -279,7 +373,8 @@ const styles = {
 
   page: {
     minHeight: "100vh",
-    background: "#020617",
+    background:
+      "linear-gradient(to bottom,#020617,#0f172a)",
     padding: 30,
     color: "white",
     fontFamily: "Arial",
@@ -287,17 +382,27 @@ const styles = {
 
   title: {
     textAlign: "center",
+    marginBottom: 10,
+    fontSize: 42,
+    fontWeight: "bold",
+  },
+
+  subtitle: {
+    textAlign: "center",
+    opacity: 0.7,
     marginBottom: 30,
   },
 
   cameraBox: {
     width: "100%",
-    maxWidth: 700,
-    height: 450,
+    maxWidth: 900,
+    height: 500,
     margin: "0 auto",
     background: "#111827",
-    borderRadius: 20,
+    borderRadius: 24,
     overflow: "hidden",
+    border:
+      "1px solid rgba(255,255,255,0.08)",
   },
 
   placeholder: {
@@ -306,28 +411,33 @@ const styles = {
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
+    textAlign: "center",
   },
 
   button: {
     marginTop: 20,
     width: "100%",
-    maxWidth: 700,
+    maxWidth: 900,
     display: "block",
     marginInline: "auto",
     padding: 16,
     border: "none",
-    borderRadius: 12,
+    borderRadius: 14,
     background: "#38bdf8",
+    color: "#000",
     fontWeight: "bold",
+    fontSize: 16,
     cursor: "pointer",
   },
 
   erro: {
     marginTop: 20,
     background: "#ef4444",
-    padding: 12,
-    borderRadius: 12,
+    padding: 14,
+    borderRadius: 14,
     textAlign: "center",
+    maxWidth: 900,
+    marginInline: "auto",
   },
 
   cards: {
@@ -336,13 +446,28 @@ const styles = {
       "repeat(auto-fit,minmax(220px,1fr))",
     gap: 20,
     marginTop: 30,
+    maxWidth: 900,
+    marginInline: "auto",
   },
 
   card: {
     background: "#111827",
-    padding: 20,
-    borderRadius: 16,
+    padding: 24,
+    borderRadius: 18,
     textAlign: "center",
+    border:
+      "1px solid rgba(255,255,255,0.06)",
+  },
+
+  cardLabel: {
+    opacity: 0.7,
+    marginBottom: 10,
+  },
+
+  cardValue: {
+    fontSize: 32,
+    fontWeight: "bold",
+    margin: 0,
   },
 };
 
