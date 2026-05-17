@@ -1,20 +1,10 @@
 "use client";
 
-import dynamic from "next/dynamic";
-
-const HypnosApp = dynamic(
-  () => Promise.resolve(HypnosComponent),
-  {
-    ssr: false,
-  }
-);
-
-function HypnosComponent() {
-
-  return <Main />;
-}
-
-import { useEffect, useRef, useState } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
 function Main() {
 
@@ -122,7 +112,7 @@ function Main() {
 
           const response =
             await fetch(
-              "https://monitoramento-sono-1.onrender.com/processar",
+              "https://monitoramento-sono.onrender.com/processar",
               {
                 method: "POST",
 
@@ -161,6 +151,7 @@ function Main() {
 
             setErroApi(true);
           }
+
         }
 
       } catch (err) {
@@ -227,10 +218,13 @@ function Main() {
       <button
         onClick={iniciarCamera}
         style={styles.button}
+        disabled={loading || cameraAtiva}
       >
 
         {loading
           ? "Carregando..."
+          : cameraAtiva
+          ? "Câmera ativa"
           : "Ativar câmera"}
 
       </button>
@@ -245,6 +239,7 @@ function Main() {
 
         <div style={styles.card}>
           <p>EAR</p>
+
           <h2>
             {dados.ear.toFixed(3)}
           </h2>
@@ -338,7 +333,7 @@ const styles = {
   cards: {
     display: "grid",
     gridTemplateColumns:
-      "repeat(3,1fr)",
+      "repeat(auto-fit,minmax(220px,1fr))",
     gap: 20,
     marginTop: 30,
   },
@@ -351,4 +346,4 @@ const styles = {
   },
 };
 
-export default HypnosApp;
+export default Main;
