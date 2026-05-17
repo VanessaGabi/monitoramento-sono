@@ -17,8 +17,12 @@ dados = {
 
 contador_frames = 0
 
-LIMITE = 20
-EAR_LIMIAR = 0.20
+# =========================
+# AJUSTES DETECÇÃO
+# =========================
+
+LIMITE = 12
+EAR_LIMIAR = 0.23
 
 # -----------------------
 # MEDIAPIPE
@@ -27,6 +31,7 @@ EAR_LIMIAR = 0.20
 face_mesh = None
 
 try:
+
     import mediapipe as mp
 
     mp_face_mesh = mp.solutions.face_mesh
@@ -42,7 +47,9 @@ try:
     print("MediaPipe carregado")
 
 except Exception as e:
+
     print("Erro MediaPipe:", e)
+
     face_mesh = None
 
 
@@ -78,6 +85,9 @@ def calcular_ear(face, olho):
     vertical2 = calcular_distancia(p3, p5)
 
     horizontal = calcular_distancia(p1, p4)
+
+    if horizontal == 0:
+        return 0.0
 
     ear = (
         (vertical1 + vertical2)
@@ -119,9 +129,14 @@ def app_front():
 @app.route("/processar", methods=["POST"])
 def processar():
 
-    global dados, contador_frames
+    global dados
+    global contador_frames
 
     try:
+
+        # =========================
+        # MEDIAPIPE
+        # =========================
 
         if face_mesh is None:
 
@@ -129,9 +144,27 @@ def processar():
                 "erro": "MediaPipe não carregado"
             })
 
-        data = request.json["image"]
+        # =========================
+        # RECEBE IMAGEM
+        # =========================
 
-        encoded = data.split(",")[1]
+        body = request.get_json()
+
+        if not body:
+
+            return jsonify({
+                "erro": "body vazio"
+            })
+
+        image = body.get("image")
+
+        if not image:
+
+            return jsonify({
+                "erro": "imagem ausente"
+            })
+
+        encoded = image.split(",")[1]
 
         img_bytes = base64.b64decode(encoded)
 
@@ -152,11 +185,11 @@ def processar():
         if frame is None:
 
             return jsonify({
-                "erro": "frame vazio"
+                "erro": "frame inválido"
             })
 
         # =========================
-        # MELHORA DETECÇÃO
+        # MELHORIAS IMAGEM
         # =========================
 
         frame = cv2.flip(frame, 1)
@@ -166,10 +199,20 @@ def processar():
             (640, 480)
         )
 
+        frame = cv2.convertScaleAbs(
+            frame,
+            alpha=1.2,
+            beta=10
+        )
+
         rgb = cv2.cvtColor(
             frame,
             cv2.COLOR_BGR2RGB
         )
+
+        # =========================
+        # PROCESSA FACE
+        # =========================
 
         results = face_mesh.process(rgb)
 
@@ -178,6 +221,8 @@ def processar():
         # =========================
 
         if not results.multi_face_landmarks:
+
+            contador_frames = 0
 
             dados["ear"] = 0.0
             dados["sonolencia"] = False
@@ -205,7 +250,7 @@ def processar():
             face.append((x, y))
 
         # =========================
-        # EAR
+        # CALCULA EAR
         # =========================
 
         ear_esq = calcular_ear(
@@ -222,13 +267,14 @@ def processar():
             ear_esq + ear_dir
         ) / 2.0
 
-        dados["ear"] = round(
-            float(ear),
-            3
-        )
+        ear = round(float(ear), 3)
+
+        dados["ear"] = ear
+
+        print("EAR:", ear)
 
         # =========================
-        # SONOLÊNCIA
+        # DETECÇÃO SONOLÊNCIA
         # =========================
 
         if ear < EAR_LIMIAR:
@@ -239,30 +285,38 @@ def processar():
 
             contador_frames = 0
 
-        dados["sonolencia"] = (
-            contador_frames >= LIMITE
-        )
+        print("Frames fechados:", contador_frames)
 
-        if dados["sonolencia"]:
+        # =========================
+        # STATUS
+        # =========================
 
+        if contador_frames >= LIMITE:
+
+            dados["sonolencia"] = True
             dados["nivel"] = "critico"
 
         elif ear < EAR_LIMIAR:
 
+            dados["sonolencia"] = False
             dados["nivel"] = "atencao"
 
         else:
 
+            dados["sonolencia"] = False
             dados["nivel"] = "normal"
 
         return jsonify(dados)
 
     except Exception as e:
 
-        print(e)
+        print("ERRO:", e)
 
         return jsonify({
-            "erro": str(e)
+            "erro": str(e),
+            "ear": 0.0,
+            "sonolencia": False,
+            "nivel": "normal"
         })
 
 
