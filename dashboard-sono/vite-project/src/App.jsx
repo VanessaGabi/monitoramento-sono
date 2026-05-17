@@ -23,17 +23,18 @@ export default function App() {
     nivel: "normal"
   });
 
-  const [historico, setHistorico] = useState([
-    { time: 0, ear: 0 }
-  ]);
+  const [historico, setHistorico] = useState([]);
 
   const [cameraAtiva, setCameraAtiva] =
+    useState(false);
+
+  const [erroApi, setErroApi] =
     useState(false);
 
   const videoRef = useRef(null);
 
   // =========================
-  // CAMERA
+  // INICIAR CAMERA
   // =========================
 
   const iniciarCamera = async () => {
@@ -42,18 +43,13 @@ export default function App() {
 
       const stream =
         await navigator.mediaDevices.getUserMedia({
-          video: {
-            width: 640,
-            height: 480,
-            facingMode: "user"
-          },
+          video: true,
           audio: false
         });
 
       if (videoRef.current) {
 
-        videoRef.current.srcObject =
-          stream;
+        videoRef.current.srcObject = stream;
 
         await videoRef.current.play();
 
@@ -62,34 +58,29 @@ export default function App() {
 
     } catch (err) {
 
-      console.log(
-        "Erro camera:",
-        err
-      );
+      console.log(err);
 
       alert(
-        "Não foi possível acessar a câmera."
+        "Erro ao acessar câmera"
       );
     }
   };
 
   // =========================
-  // LOOP PROCESSAMENTO
+  // LOOP IA
   // =========================
 
   useEffect(() => {
 
     if (!cameraAtiva) return;
 
+    let ativo = true;
+
     const canvas =
       document.createElement("canvas");
 
     const ctx =
       canvas.getContext("2d");
-
-    let ativo = true;
-
-    let contadorErro = 0;
 
     const processar = async () => {
 
@@ -99,14 +90,9 @@ export default function App() {
 
         const video = videoRef.current;
 
-        // =========================
-        // VIDEO PRONTO
-        // =========================
-
         if (
           video &&
-          video.readyState === 4 &&
-          video.videoWidth > 0
+          video.readyState === 4
         ) {
 
           canvas.width = 640;
@@ -120,80 +106,48 @@ export default function App() {
             480
           );
 
-          // =========================
-          // IMAGEM
-          // =========================
-
           const image =
             canvas.toDataURL(
               "image/jpeg",
-              0.9
+              0.7
             );
 
-          // =========================
-          // ENVIA BACKEND
-          // =========================
+          const response =
+            await fetch(
+              "https://monitoramento-sono-1.onrender.com/processar",
+              {
+                method: "POST",
 
-          const response = await fetch(
-            "https://monitoramento-sono-1.onrender.com/processar",
-            {
-              method: "POST",
+                headers: {
+                  "Content-Type":
+                    "application/json"
+                },
 
-              headers: {
-                "Content-Type":
-                  "application/json"
-              },
-
-              body: JSON.stringify({
-                image
-              })
-            }
-          );
-
-          console.log(
-            "STATUS:",
-            response.status
-          );
+                body: JSON.stringify({
+                  image
+                })
+              }
+            );
 
           const data =
             await response.json();
 
-          console.log(
-            "DATA:",
-            data
-          );
+          console.log(data);
 
-          // =========================
-          // ERRO API
-          // =========================
+          if (!data.erro) {
 
-          if (data.erro) {
-
-            console.log(
-              "Erro backend:",
-              data.erro
-            );
-
-          } else {
-
-            // =========================
-            // ATUALIZA DASHBOARD
-            // =========================
+            setErroApi(false);
 
             const ear =
-              Number(data.ear ?? 0);
+              Number(data.ear || 0);
 
             setDados({
               ear,
               sonolencia:
-                data.sonolencia ?? false,
+                data.sonolencia,
               nivel:
-                data.nivel ?? "normal"
+                data.nivel
             });
-
-            // =========================
-            // HISTÓRICO
-            // =========================
 
             setHistorico(prev => {
 
@@ -205,49 +159,24 @@ export default function App() {
                 }
               ];
 
-              return novo.slice(-40);
-
+              return novo.slice(-25);
             });
 
-          }
+          } else {
 
-          contadorErro = 0;
+            setErroApi(true);
+          }
 
         }
 
       } catch (err) {
 
-        contadorErro++;
+        console.log(err);
 
-        console.log(
-          "Erro API:",
-          err
-        );
-
-        // =========================
-        // MUITOS ERROS
-        // =========================
-
-        if (contadorErro >= 5) {
-
-          setDados({
-            ear: 0,
-            sonolencia: false,
-            nivel: "normal"
-          });
-
-        }
-
+        setErroApi(true);
       }
 
-      // =========================
-      // LOOP CONTÍNUO
-      // =========================
-
-      setTimeout(
-        processar,
-        400
-      );
+      setTimeout(processar, 700);
     };
 
     processar();
@@ -270,14 +199,6 @@ export default function App() {
       ? "#facc15"
       : "#22c55e";
 
-  const risco =
-
-    dados.nivel === "critico"
-      ? 90
-      : dados.nivel === "atencao"
-      ? 55
-      : 10;
-
   return (
 
     <div style={styles.page}>
@@ -287,17 +208,17 @@ export default function App() {
       <div style={styles.header}>
 
         <h1 style={styles.title}>
-          🧠 HYPNOS AI
+          HYPNOS AI
         </h1>
 
         <p style={styles.subtitle}>
-          Sistema Inteligente de
-          Monitoramento de Condutor
+          Monitoramento Inteligente
+          de Sonolência
         </p>
 
       </div>
 
-      {/* LAYOUT */}
+      {/* GRID */}
 
       <div style={styles.layout}>
 
@@ -305,31 +226,19 @@ export default function App() {
 
         <div style={styles.cameraCard}>
 
-          <div style={styles.cameraHeader}>
-            <Camera />
-            <span>
-              Transmissão OpenCV
-            </span>
-          </div>
-
           <div style={styles.cameraBox}>
 
             {!cameraAtiva && (
 
-              <div
-                style={
-                  styles.cameraPlaceholder
-                }
-              >
+              <div style={styles.placeholder}>
 
                 <Camera
-                  size={70}
+                  size={60}
                   color="#38bdf8"
                 />
 
-                <p style={styles.cameraText}>
-                  Clique em
-                  "Ativar Câmera"
+                <p>
+                  Clique para iniciar
                 </p>
 
               </div>
@@ -339,8 +248,8 @@ export default function App() {
             <video
               ref={videoRef}
               autoPlay
-              playsInline
               muted
+              playsInline
               style={{
                 width: "100%",
                 height: "100%",
@@ -354,11 +263,9 @@ export default function App() {
 
           </div>
 
-          {/* BOTÃO */}
-
           <button
             onClick={iniciarCamera}
-            style={styles.startButton}
+            style={styles.button}
           >
 
             {cameraAtiva
@@ -367,45 +274,33 @@ export default function App() {
 
           </button>
 
-          {/* RISCO */}
-
-          <div style={{ marginTop: 20 }}>
-
-            <p style={styles.riskText}>
-              Nível de risco: {risco}%
-            </p>
-
-            <div style={styles.progressBg}>
-
-              <div
-                style={{
-                  ...styles.progressFill,
-                  width: `${risco}%`,
-                  background: statusColor
-                }}
-              />
-
-            </div>
-
-          </div>
-
         </div>
 
         {/* DASHBOARD */}
 
-        <div style={styles.rightPanel}>
+        <div style={styles.right}>
 
           {/* ALERTA */}
 
           {dados.sonolencia && (
 
-            <div style={styles.alert}>
+            <div style={styles.alerta}>
 
               <AlertTriangle />
 
-              ALERTA:
-              Recomenda-se parar
-              o veículo
+              SONOLÊNCIA DETECTADA
+
+            </div>
+
+          )}
+
+          {/* API */}
+
+          {erroApi && (
+
+            <div style={styles.apiErro}>
+
+              Backend desconectado
 
             </div>
 
@@ -415,77 +310,35 @@ export default function App() {
 
           <div style={styles.cards}>
 
-            {/* EAR */}
-
             <div style={styles.card}>
 
               <Eye
                 color="#38bdf8"
-                size={32}
               />
 
-              <p style={styles.cardLabel}>
-                EAR (Olhos)
-              </p>
+              <p>EAR</p>
 
-              <h2 style={styles.cardValue}>
-
-                {Number(
-                  dados.ear ?? 0
-                ).toFixed(3)}
-
+              <h2>
+                {dados.ear.toFixed(3)}
               </h2>
 
             </div>
-
-            {/* STATUS */}
 
             <div style={styles.card}>
 
               <Activity
                 color={statusColor}
-                size={32}
               />
 
-              <p style={styles.cardLabel}>
-                Status
-              </p>
+              <p>Status</p>
 
               <h2
                 style={{
-                  ...styles.cardValue,
                   color: statusColor
                 }}
               >
 
-                {dados.nivel.toUpperCase()}
-
-              </h2>
-
-            </div>
-
-            {/* SONO */}
-
-            <div style={styles.card}>
-
-              <AlertTriangle
-                color={
-                  dados.sonolencia
-                    ? "#ef4444"
-                    : "#22c55e"
-                }
-                size={32}
-              />
-
-              <p style={styles.cardLabel}>
-                Sonolência
-              </p>
-
-              <h2 style={styles.cardValue}>
-
-                {dados.sonolencia
-                  ? "SIM"
-                  : "NÃO"}
+                {dados.nivel}
 
               </h2>
 
@@ -493,51 +346,44 @@ export default function App() {
 
           </div>
 
-          {/* GRÁFICO */}
+          {/* GRAFICO */}
 
           <div style={styles.chartCard}>
 
-            <h3 style={styles.chartTitle}>
-              Monitoramento EAR
-              em Tempo Real
+            <h3 style={{
+              color: "white",
+              marginBottom: 20
+            }}>
+              EAR em Tempo Real
             </h3>
 
-            <div
-              style={{
-                width: "100%",
-                height: 320
-              }}
+            <LineChart
+              width={700}
+              height={300}
+              data={historico}
             >
 
-              <LineChart
-                width={700}
-                height={300}
-                data={historico}
-              >
+              <XAxis
+                dataKey="time"
+                stroke="#94a3b8"
+              />
 
-                <XAxis
-                  dataKey="time"
-                  stroke="#64748b"
-                />
+              <YAxis
+                domain={[0, 0.5]}
+                stroke="#94a3b8"
+              />
 
-                <YAxis
-                  domain={[0, 0.5]}
-                  stroke="#64748b"
-                />
+              <Tooltip />
 
-                <Tooltip />
+              <Line
+                type="monotone"
+                dataKey="ear"
+                stroke="#38bdf8"
+                strokeWidth={3}
+                dot={false}
+              />
 
-                <Line
-                  type="monotone"
-                  dataKey="ear"
-                  stroke="#38bdf8"
-                  strokeWidth={3}
-                  dot={false}
-                />
-
-              </LineChart>
-
-            </div>
+            </LineChart>
 
           </div>
 
@@ -549,9 +395,9 @@ export default function App() {
   );
 }
 
-/* =========================
-   STYLES
-========================= */
+// =========================
+// STYLES
+// =========================
 
 const styles = {
 
@@ -574,79 +420,78 @@ const styles = {
   },
 
   subtitle: {
-    color: "#94a3b8",
-    fontSize: 18
+    color: "#94a3b8"
   },
 
   layout: {
     display: "grid",
-    gridTemplateColumns: "350px 1fr",
-    gap: 25
+    gridTemplateColumns:
+      "350px 1fr",
+    gap: 20
   },
 
   cameraCard: {
     background:
       "rgba(15,23,42,0.8)",
-    borderRadius: 20,
-    padding: 20
-  },
-
-  cameraHeader: {
-    display: "flex",
-    alignItems: "center",
-    gap: 10,
-    color: "white",
-    marginBottom: 15
+    padding: 20,
+    borderRadius: 20
   },
 
   cameraBox: {
     height: 420,
-    borderRadius: 20,
     background: "#0f172a",
+    borderRadius: 20,
+    overflow: "hidden",
     display: "flex",
-    alignItems: "center",
     justifyContent: "center",
-    overflow: "hidden"
+    alignItems: "center"
   },
 
-  cameraPlaceholder: {
-    textAlign: "center",
-    color: "#cbd5e1"
+  placeholder: {
+    color: "white",
+    textAlign: "center"
   },
 
-  cameraText: {
-    marginTop: 10
-  },
-
-  startButton: {
+  button: {
     width: "100%",
     marginTop: 15,
     padding: 12,
-    borderRadius: 10,
     border: "none",
+    borderRadius: 10,
     background: "#38bdf8",
-    cursor: "pointer",
-    fontWeight: "bold"
+    fontWeight: "bold",
+    cursor: "pointer"
   },
 
-  rightPanel: {
+  right: {
     display: "flex",
     flexDirection: "column",
     gap: 20
   },
 
-  alert: {
+  alerta: {
     background: "#ef4444",
-    color: "white",
-    padding: 12,
+    padding: 14,
     borderRadius: 10,
+    color: "white",
+    fontWeight: "bold",
+    display: "flex",
+    gap: 10,
+    alignItems: "center"
+  },
+
+  apiErro: {
+    background: "#f59e0b",
+    padding: 10,
+    borderRadius: 10,
+    color: "white",
     fontWeight: "bold"
   },
 
   cards: {
     display: "grid",
     gridTemplateColumns:
-      "repeat(3,1fr)",
+      "repeat(2,1fr)",
     gap: 15
   },
 
@@ -659,45 +504,12 @@ const styles = {
     textAlign: "center"
   },
 
-  cardLabel: {
-    color: "#94a3b8",
-    marginTop: 10
-  },
-
-  cardValue: {
-    fontSize: 26,
-    fontWeight: "bold"
-  },
-
   chartCard: {
     background:
       "rgba(15,23,42,0.8)",
     padding: 20,
-    borderRadius: 20
-  },
-
-  chartTitle: {
-    color: "white",
-    marginBottom: 20
-  },
-
-  riskText: {
-    color: "white",
-    marginBottom: 10,
-    fontWeight: "bold"
-  },
-
-  progressBg: {
-    width: "100%",
-    height: 14,
-    background: "#1e293b",
-    borderRadius: 999
-  },
-
-  progressFill: {
-    height: "100%",
-    borderRadius: 999,
-    transition: "0.3s"
+    borderRadius: 20,
+    overflowX: "auto"
   }
 
 };
