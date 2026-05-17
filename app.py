@@ -17,11 +17,8 @@ dados = {
 
 contador_frames = 0
 
-# =========================
-# CORREÇÃO IMPORTANTE
-# =========================
-EAR_LIMIAR = 0.23
-LIMITE = 15
+LIMITE = 20
+EAR_LIMIAR = 0.20
 
 # -----------------------
 # MEDIAPIPE
@@ -50,14 +47,11 @@ except Exception as e:
 
 
 # -----------------------
-# OLHOS (LANDMARKS)
+# LANDMARKS OLHOS
 # -----------------------
 
 OLHO_ESQ = [33, 160, 158, 133, 153, 144]
 OLHO_DIR = [362, 385, 387, 263, 373, 380]
-
-historico_ear = []
-MAX_HIST = 10
 
 
 # -----------------------
@@ -65,7 +59,10 @@ MAX_HIST = 10
 # -----------------------
 
 def calcular_distancia(p1, p2):
-    return np.linalg.norm(np.array(p1) - np.array(p2))
+
+    return np.linalg.norm(
+        np.array(p1) - np.array(p2)
+    )
 
 
 def calcular_ear(face, olho):
@@ -79,9 +76,15 @@ def calcular_ear(face, olho):
 
     vertical1 = calcular_distancia(p2, p6)
     vertical2 = calcular_distancia(p3, p5)
+
     horizontal = calcular_distancia(p1, p4)
 
-    return (vertical1 + vertical2) / (2.0 * horizontal)
+    ear = (
+        (vertical1 + vertical2)
+        / (2.0 * horizontal)
+    )
+
+    return ear
 
 
 # -----------------------
@@ -90,116 +93,173 @@ def calcular_ear(face, olho):
 
 @app.route("/")
 def home():
+
     return "API HYPNOS rodando"
 
 
 @app.route("/dados")
 def get_dados():
+
     return jsonify(dados)
 
 
 @app.route("/app")
 def app_front():
-    return send_from_directory("frontend", "index.html")
+
+    return send_from_directory(
+        "frontend",
+        "index.html"
+    )
 
 
 # -----------------------
-# PROCESSAMENTO
+# PROCESSAMENTO REAL
 # -----------------------
 
 @app.route("/processar", methods=["POST"])
 def processar():
 
-    global dados, contador_frames, historico_ear
-
-    print("\n🔵 REQUEST RECEBIDA")
+    global dados, contador_frames
 
     try:
+
+        if face_mesh is None:
+
+            return jsonify({
+                "erro": "MediaPipe não carregado"
+            })
+
         data = request.json["image"]
 
         encoded = data.split(",")[1]
+
         img_bytes = base64.b64decode(encoded)
-        np_arr = np.frombuffer(img_bytes, np.uint8)
 
-        frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+        np_arr = np.frombuffer(
+            img_bytes,
+            np.uint8
+        )
 
-        rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        frame = cv2.imdecode(
+            np_arr,
+            cv2.IMREAD_COLOR
+        )
+
+        # =========================
+        # VALIDA FRAME
+        # =========================
+
+        if frame is None:
+
+            return jsonify({
+                "erro": "frame vazio"
+            })
+
+        # =========================
+        # MELHORA DETECÇÃO
+        # =========================
+
+        frame = cv2.flip(frame, 1)
+
+        frame = cv2.resize(
+            frame,
+            (640, 480)
+        )
+
+        rgb = cv2.cvtColor(
+            frame,
+            cv2.COLOR_BGR2RGB
+        )
 
         results = face_mesh.process(rgb)
 
-        # -----------------------
+        # =========================
         # SEM ROSTO
-        # -----------------------
+        # =========================
+
         if not results.multi_face_landmarks:
-
-            print("👤 ROSTO NÃO DETECTADO")
-
-            contador_frames = 0
-            historico_ear = []
 
             dados["ear"] = 0.0
             dados["sonolencia"] = False
-            dados["nivel"] = "sem rosto"
+            dados["nivel"] = "normal"
 
             return jsonify(dados)
 
-        face_landmarks = results.multi_face_landmarks[0]
+        # =========================
+        # FACE DETECTADA
+        # =========================
+
+        face_landmarks = (
+            results.multi_face_landmarks[0]
+        )
 
         h, w, _ = frame.shape
 
         face = []
+
         for lm in face_landmarks.landmark:
-            face.append((int(lm.x * w), int(lm.y * h)))
 
-        # -----------------------
+            x = int(lm.x * w)
+            y = int(lm.y * h)
+
+            face.append((x, y))
+
+        # =========================
         # EAR
-        # -----------------------
+        # =========================
 
-        ear_esq = calcular_ear(face, OLHO_ESQ)
-        ear_dir = calcular_ear(face, OLHO_DIR)
+        ear_esq = calcular_ear(
+            face,
+            OLHO_ESQ
+        )
 
-        ear = (ear_esq + ear_dir) / 2.0
+        ear_dir = calcular_ear(
+            face,
+            OLHO_DIR
+        )
 
-        # -----------------------
-        # SUAVIZAÇÃO
-        # -----------------------
+        ear = (
+            ear_esq + ear_dir
+        ) / 2.0
 
-        historico_ear.append(ear)
+        dados["ear"] = round(
+            float(ear),
+            3
+        )
 
-        if len(historico_ear) > MAX_HIST:
-            historico_ear.pop(0)
+        # =========================
+        # SONOLÊNCIA
+        # =========================
 
-        ear_suave = sum(historico_ear) / len(historico_ear)
+        if ear < EAR_LIMIAR:
 
-        dados["ear"] = round(float(ear_suave), 3)
-
-        print("📊 EAR:", ear_suave, "contador:", contador_frames)
-
-        # -----------------------
-        # SONOLÊNCIA (CORRIGIDO)
-        # -----------------------
-
-        if ear_suave < EAR_LIMIAR:
             contador_frames += 1
-        else:
-            contador_frames = max(0, contador_frames - 1)
 
-        if contador_frames >= LIMITE:
-            dados["sonolencia"] = True
+        else:
+
+            contador_frames = 0
+
+        dados["sonolencia"] = (
+            contador_frames >= LIMITE
+        )
+
+        if dados["sonolencia"]:
+
             dados["nivel"] = "critico"
 
-        elif contador_frames > 0:
-            dados["sonolencia"] = False
+        elif ear < EAR_LIMIAR:
+
             dados["nivel"] = "atencao"
 
         else:
-            dados["sonolencia"] = False
+
             dados["nivel"] = "normal"
 
         return jsonify(dados)
 
     except Exception as e:
-        print("❌ ERRO:", e)
+
+        print(e)
 
         return jsonify({
             "erro": str(e)
@@ -212,10 +272,11 @@ def processar():
 
 if __name__ == "__main__":
 
-    port = int(os.environ.get("PORT", 5000))
+    port = int(
+        os.environ.get("PORT", 5000)
+    )
 
     app.run(
         host="0.0.0.0",
-        port=port,
-        debug=True
+        port=port
     )
