@@ -5,19 +5,18 @@ import dynamic from "next/dynamic";
 const HypnosApp = dynamic(
   () => Promise.resolve(HypnosComponent),
   {
-    ssr: false
+    ssr: false,
   }
 );
 
-export default function Page() {
-  return <HypnosApp />;
+function HypnosComponent() {
+
+  return <Main />;
 }
 
 import { useEffect, useRef, useState } from "react";
 
-function HypnosComponent() {
-
-  const videoRef = useRef(null);
+function Main() {
 
   const [cameraAtiva, setCameraAtiva] =
     useState(false);
@@ -25,19 +24,21 @@ function HypnosComponent() {
   const [loading, setLoading] =
     useState(false);
 
+  const [erroApi, setErroApi] =
+    useState(false);
+
   const [dados, setDados] =
     useState({
       ear: 0,
       sonolencia: false,
-      nivel: "normal"
+      nivel: "normal",
     });
 
-  const [erroApi, setErroApi] =
-    useState(false);
+  const videoRef = useRef(null);
 
-  // =====================================
+  // =========================
   // CAMERA
-  // =====================================
+  // =========================
 
   const iniciarCamera = async () => {
 
@@ -48,7 +49,7 @@ function HypnosComponent() {
       const stream =
         await navigator.mediaDevices.getUserMedia({
           video: true,
-          audio: false
+          audio: false,
         });
 
       if (videoRef.current) {
@@ -69,13 +70,13 @@ function HypnosComponent() {
 
       setLoading(false);
 
-      alert("Erro ao abrir câmera");
+      alert("Erro ao acessar câmera");
     }
   };
 
-  // =====================================
+  // =========================
   // LOOP IA
-  // =====================================
+  // =========================
 
   useEffect(() => {
 
@@ -89,7 +90,7 @@ function HypnosComponent() {
     const ctx =
       canvas.getContext("2d");
 
-    const loop = async () => {
+    const processar = async () => {
 
       if (!ativo) return;
 
@@ -127,12 +128,12 @@ function HypnosComponent() {
 
                 headers: {
                   "Content-Type":
-                    "application/json"
+                    "application/json",
                 },
 
                 body: JSON.stringify({
-                  image
-                })
+                  image,
+                }),
               }
             );
 
@@ -153,14 +154,13 @@ function HypnosComponent() {
                 data.sonolencia || false,
 
               nivel:
-                data.nivel || "normal"
+                data.nivel || "normal",
             });
 
           } else {
 
             setErroApi(true);
           }
-
         }
 
       } catch (err) {
@@ -170,10 +170,10 @@ function HypnosComponent() {
         setErroApi(true);
       }
 
-      setTimeout(loop, 1000);
+      setTimeout(processar, 1000);
     };
 
-    loop();
+    processar();
 
     return () => {
 
@@ -181,10 +181,6 @@ function HypnosComponent() {
     };
 
   }, [cameraAtiva]);
-
-  // =====================================
-  // STATUS
-  // =====================================
 
   const statusColor =
 
@@ -194,10 +190,6 @@ function HypnosComponent() {
       ? "#facc15"
       : "#22c55e";
 
-  // =====================================
-  // UI
-  // =====================================
-
   return (
 
     <div style={styles.page}>
@@ -206,133 +198,79 @@ function HypnosComponent() {
         HYPNOS AI
       </h1>
 
-      <p style={styles.subtitle}>
-        Sistema Inteligente de
-        Monitoramento de Sonolência
-      </p>
+      <div style={styles.cameraBox}>
 
-      <div style={styles.layout}>
-
-        {/* CAMERA */}
-
-        <div style={styles.cameraCard}>
-
-          <div style={styles.cameraBox}>
-
-            {!cameraAtiva && (
-
-              <div
-                style={styles.placeholder}
-              >
-
-                <h2>
-                  Câmera desligada
-                </h2>
-
-              </div>
-
-            )}
-
-            <video
-              ref={videoRef}
-              autoPlay
-              muted
-              playsInline
-              style={{
-                width: "100%",
-                height: "100%",
-                objectFit: "cover",
-                display:
-                  cameraAtiva
-                    ? "block"
-                    : "none"
-              }}
-            />
-
+        {!cameraAtiva && (
+          <div style={styles.placeholder}>
+            Câmera desligada
           </div>
+        )}
 
-          <button
-            onClick={iniciarCamera}
-            style={styles.button}
+        <video
+          ref={videoRef}
+          autoPlay
+          muted
+          playsInline
+          style={{
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            display:
+              cameraAtiva
+                ? "block"
+                : "none",
+          }}
+        />
+
+      </div>
+
+      <button
+        onClick={iniciarCamera}
+        style={styles.button}
+      >
+
+        {loading
+          ? "Carregando..."
+          : "Ativar câmera"}
+
+      </button>
+
+      {erroApi && (
+        <div style={styles.erro}>
+          API desconectada
+        </div>
+      )}
+
+      <div style={styles.cards}>
+
+        <div style={styles.card}>
+          <p>EAR</p>
+          <h2>
+            {dados.ear.toFixed(3)}
+          </h2>
+        </div>
+
+        <div style={styles.card}>
+          <p>STATUS</p>
+
+          <h2
+            style={{
+              color: statusColor,
+            }}
           >
-
-            {loading
-              ? "Carregando..."
-              : cameraAtiva
-              ? "Câmera Ativa"
-              : "Ativar Câmera"}
-
-          </button>
+            {dados.nivel.toUpperCase()}
+          </h2>
 
         </div>
 
-        {/* DASHBOARD */}
+        <div style={styles.card}>
+          <p>SONOLÊNCIA</p>
 
-        <div style={styles.dashboard}>
-
-          {erroApi && (
-
-            <div style={styles.erro}>
-
-              API DESCONECTADA
-
-            </div>
-
-          )}
-
-          {dados.sonolencia && (
-
-            <div style={styles.alerta}>
-
-              SONOLÊNCIA DETECTADA
-
-            </div>
-
-          )}
-
-          <div style={styles.cards}>
-
-            <div style={styles.card}>
-
-              <p>EAR</p>
-
-              <h2>
-                {dados.ear.toFixed(3)}
-              </h2>
-
-            </div>
-
-            <div style={styles.card}>
-
-              <p>STATUS</p>
-
-              <h2
-                style={{
-                  color: statusColor
-                }}
-              >
-
-                {dados.nivel.toUpperCase()}
-
-              </h2>
-
-            </div>
-
-            <div style={styles.card}>
-
-              <p>SONOLÊNCIA</p>
-
-              <h2>
-
-                {dados.sonolencia
-                  ? "SIM"
-                  : "NÃO"}
-
-              </h2>
-
-            </div>
-
-          </div>
+          <h2>
+            {dados.sonolencia
+              ? "SIM"
+              : "NÃO"}
+          </h2>
 
         </div>
 
@@ -346,95 +284,71 @@ const styles = {
 
   page: {
     minHeight: "100vh",
-    background:
-      "linear-gradient(135deg,#020617,#0f172a)",
+    background: "#020617",
     padding: 30,
+    color: "white",
     fontFamily: "Arial",
-    color: "white"
   },
 
   title: {
     textAlign: "center",
-    fontSize: 42
-  },
-
-  subtitle: {
-    textAlign: "center",
-    color: "#94a3b8",
-    marginBottom: 30
-  },
-
-  layout: {
-    display: "grid",
-    gridTemplateColumns:
-      "400px 1fr",
-    gap: 20
-  },
-
-  cameraCard: {
-    background:
-      "rgba(15,23,42,0.8)",
-    padding: 20,
-    borderRadius: 20
+    marginBottom: 30,
   },
 
   cameraBox: {
+    width: "100%",
+    maxWidth: 700,
     height: 450,
+    margin: "0 auto",
     background: "#111827",
     borderRadius: 20,
     overflow: "hidden",
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center"
   },
 
   placeholder: {
-    textAlign: "center"
+    width: "100%",
+    height: "100%",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
   },
 
   button: {
+    marginTop: 20,
     width: "100%",
-    marginTop: 15,
-    padding: 14,
+    maxWidth: 700,
+    display: "block",
+    marginInline: "auto",
+    padding: 16,
     border: "none",
     borderRadius: 12,
     background: "#38bdf8",
     fontWeight: "bold",
-    cursor: "pointer"
-  },
-
-  dashboard: {
-    display: "flex",
-    flexDirection: "column",
-    gap: 20
+    cursor: "pointer",
   },
 
   erro: {
-    background: "#f59e0b",
-    padding: 15,
-    borderRadius: 12
-  },
-
-  alerta: {
+    marginTop: 20,
     background: "#ef4444",
-    padding: 15,
+    padding: 12,
     borderRadius: 12,
-    fontWeight: "bold"
+    textAlign: "center",
   },
 
   cards: {
     display: "grid",
     gridTemplateColumns:
       "repeat(3,1fr)",
-    gap: 15
+    gap: 20,
+    marginTop: 30,
   },
 
   card: {
-    background:
-      "rgba(15,23,42,0.8)",
+    background: "#111827",
     padding: 20,
     borderRadius: 16,
-    textAlign: "center"
-  }
-
+    textAlign: "center",
+  },
 };
+
+export default HypnosApp;
