@@ -1,23 +1,28 @@
 "use client";
 
+import dynamic from "next/dynamic";
+
+const HypnosApp = dynamic(
+  () => Promise.resolve(HypnosComponent),
+  {
+    ssr: false
+  }
+);
+
+export default function Page() {
+  return <HypnosApp />;
+}
+
 import { useEffect, useRef, useState } from "react";
 
-export default function App() {
+function HypnosComponent() {
 
-  // =====================================
-  // STATES
-  // =====================================
-
-  const [mounted, setMounted] =
-    useState(false);
+  const videoRef = useRef(null);
 
   const [cameraAtiva, setCameraAtiva] =
     useState(false);
 
   const [loading, setLoading] =
-    useState(false);
-
-  const [erroApi, setErroApi] =
     useState(false);
 
   const [dados, setDados] =
@@ -27,24 +32,11 @@ export default function App() {
       nivel: "normal"
     });
 
-  // =====================================
-  // REFS
-  // =====================================
-
-  const videoRef = useRef(null);
+  const [erroApi, setErroApi] =
+    useState(false);
 
   // =====================================
-  // EVITA HYDRATION ERROR
-  // =====================================
-
-  useEffect(() => {
-
-    setMounted(true);
-
-  }, []);
-
-  // =====================================
-  // INICIAR CAMERA
+  // CAMERA
   // =====================================
 
   const iniciarCamera = async () => {
@@ -55,11 +47,7 @@ export default function App() {
 
       const stream =
         await navigator.mediaDevices.getUserMedia({
-          video: {
-            width: 640,
-            height: 480,
-            facingMode: "user"
-          },
+          video: true,
           audio: false
         });
 
@@ -81,9 +69,7 @@ export default function App() {
 
       setLoading(false);
 
-      alert(
-        "Erro ao acessar câmera"
-      );
+      alert("Erro ao abrir câmera");
     }
   };
 
@@ -103,7 +89,7 @@ export default function App() {
     const ctx =
       canvas.getContext("2d");
 
-    const processar = async () => {
+    const loop = async () => {
 
       if (!ativo) return;
 
@@ -113,8 +99,7 @@ export default function App() {
 
         if (
           video &&
-          video.readyState === 4 &&
-          video.videoWidth > 0
+          video.readyState === 4
         ) {
 
           canvas.width = 640;
@@ -128,19 +113,11 @@ export default function App() {
             480
           );
 
-          // ==========================
-          // COMPRESSÃO
-          // ==========================
-
           const image =
             canvas.toDataURL(
               "image/jpeg",
               0.5
             );
-
-          // ==========================
-          // API
-          // ==========================
 
           const response =
             await fetch(
@@ -159,65 +136,44 @@ export default function App() {
               }
             );
 
-          // ==========================
-          // VERIFICA API
-          // ==========================
-
-          if (!response.ok) {
-
-            throw new Error(
-              "Erro API"
-            );
-          }
-
           const data =
             await response.json();
 
-          console.log("API:", data);
+          console.log(data);
 
-          // ==========================
-          // ATUALIZA
-          // ==========================
+          if (!data.erro) {
 
-          setErroApi(false);
+            setErroApi(false);
 
-          setDados({
-            ear:
-              Number(data.ear || 0),
+            setDados({
+              ear:
+                Number(data.ear || 0),
 
-            sonolencia:
-              data.sonolencia || false,
+              sonolencia:
+                data.sonolencia || false,
 
-            nivel:
-              data.nivel || "normal"
-          });
+              nivel:
+                data.nivel || "normal"
+            });
+
+          } else {
+
+            setErroApi(true);
+          }
 
         }
 
       } catch (err) {
 
-        console.log(
-          "ERRO:",
-          err
-        );
+        console.log(err);
 
         setErroApi(true);
       }
 
-      // ==========================
-      // LOOP CONTROLADO
-      // ==========================
-
-      if (ativo) {
-
-        setTimeout(
-          processar,
-          1200
-        );
-      }
+      setTimeout(loop, 1000);
     };
 
-    processar();
+    loop();
 
     return () => {
 
@@ -227,7 +183,7 @@ export default function App() {
   }, [cameraAtiva]);
 
   // =====================================
-  // STATUS COLOR
+  // STATUS
   // =====================================
 
   const statusColor =
@@ -239,38 +195,21 @@ export default function App() {
       : "#22c55e";
 
   // =====================================
-  // EVITA ERRO REACT 418
-  // =====================================
-
-  if (!mounted) {
-
-    return null;
-  }
-
-  // =====================================
   // UI
   // =====================================
 
   return (
 
-    <main style={styles.page}>
+    <div style={styles.page}>
 
-      {/* HEADER */}
+      <h1 style={styles.title}>
+        HYPNOS AI
+      </h1>
 
-      <div style={styles.header}>
-
-        <h1 style={styles.title}>
-          HYPNOS AI
-        </h1>
-
-        <p style={styles.subtitle}>
-          Sistema Inteligente de
-          Monitoramento de Sonolência
-        </p>
-
-      </div>
-
-      {/* LAYOUT */}
+      <p style={styles.subtitle}>
+        Sistema Inteligente de
+        Monitoramento de Sonolência
+      </p>
 
       <div style={styles.layout}>
 
@@ -282,15 +221,13 @@ export default function App() {
 
             {!cameraAtiva && (
 
-              <div style={styles.placeholder}>
+              <div
+                style={styles.placeholder}
+              >
 
                 <h2>
-                  Câmera Desativada
+                  Câmera desligada
                 </h2>
-
-                <p>
-                  Clique abaixo para iniciar
-                </p>
 
               </div>
 
@@ -314,11 +251,8 @@ export default function App() {
 
           </div>
 
-          {/* BOTÃO */}
-
           <button
             onClick={iniciarCamera}
-            disabled={loading}
             style={styles.button}
           >
 
@@ -336,61 +270,44 @@ export default function App() {
 
         <div style={styles.dashboard}>
 
-          {/* ALERTA */}
+          {erroApi && (
+
+            <div style={styles.erro}>
+
+              API DESCONECTADA
+
+            </div>
+
+          )}
 
           {dados.sonolencia && (
 
             <div style={styles.alerta}>
 
-              ⚠ SONOLÊNCIA DETECTADA
+              SONOLÊNCIA DETECTADA
 
             </div>
 
           )}
-
-          {/* API */}
-
-          {erroApi && (
-
-            <div style={styles.erroApi}>
-
-              API desconectada
-
-            </div>
-
-          )}
-
-          {/* CARDS */}
 
           <div style={styles.cards}>
 
-            {/* EAR */}
-
             <div style={styles.card}>
 
-              <p style={styles.cardLabel}>
-                EAR
-              </p>
+              <p>EAR</p>
 
-              <h2 style={styles.cardValue}>
-
+              <h2>
                 {dados.ear.toFixed(3)}
-
               </h2>
 
             </div>
 
-            {/* STATUS */}
-
             <div style={styles.card}>
 
-              <p style={styles.cardLabel}>
-                STATUS
-              </p>
+              <p>STATUS</p>
 
               <h2
                 style={{
-                  ...styles.cardValue,
                   color: statusColor
                 }}
               >
@@ -401,15 +318,11 @@ export default function App() {
 
             </div>
 
-            {/* SONOLENCIA */}
-
             <div style={styles.card}>
 
-              <p style={styles.cardLabel}>
-                SONOLÊNCIA
-              </p>
+              <p>SONOLÊNCIA</p>
 
-              <h2 style={styles.cardValue}>
+              <h2>
 
                 {dados.sonolencia
                   ? "SIM"
@@ -425,13 +338,9 @@ export default function App() {
 
       </div>
 
-    </main>
+    </div>
   );
 }
-
-// =====================================
-// STYLES
-// =====================================
 
 const styles = {
 
@@ -440,23 +349,19 @@ const styles = {
     background:
       "linear-gradient(135deg,#020617,#0f172a)",
     padding: 30,
-    fontFamily: "Arial"
-  },
-
-  header: {
-    textAlign: "center",
-    marginBottom: 30
+    fontFamily: "Arial",
+    color: "white"
   },
 
   title: {
-    color: "white",
-    fontSize: 42,
-    marginBottom: 10
+    textAlign: "center",
+    fontSize: 42
   },
 
   subtitle: {
+    textAlign: "center",
     color: "#94a3b8",
-    fontSize: 18
+    marginBottom: 30
   },
 
   layout: {
@@ -474,7 +379,6 @@ const styles = {
   },
 
   cameraBox: {
-    width: "100%",
     height: 450,
     background: "#111827",
     borderRadius: 20,
@@ -485,21 +389,18 @@ const styles = {
   },
 
   placeholder: {
-    textAlign: "center",
-    color: "white"
+    textAlign: "center"
   },
 
   button: {
     width: "100%",
     marginTop: 15,
     padding: 14,
-    borderRadius: 12,
     border: "none",
+    borderRadius: 12,
     background: "#38bdf8",
-    color: "#000",
     fontWeight: "bold",
-    cursor: "pointer",
-    fontSize: 16
+    cursor: "pointer"
   },
 
   dashboard: {
@@ -508,20 +409,16 @@ const styles = {
     gap: 20
   },
 
-  alerta: {
-    background: "#ef4444",
-    padding: 16,
-    borderRadius: 12,
-    color: "white",
-    fontWeight: "bold",
-    fontSize: 18
+  erro: {
+    background: "#f59e0b",
+    padding: 15,
+    borderRadius: 12
   },
 
-  erroApi: {
-    background: "#f59e0b",
-    padding: 16,
+  alerta: {
+    background: "#ef4444",
+    padding: 15,
     borderRadius: 12,
-    color: "white",
     fontWeight: "bold"
   },
 
@@ -535,21 +432,9 @@ const styles = {
   card: {
     background:
       "rgba(15,23,42,0.8)",
-    padding: 25,
+    padding: 20,
     borderRadius: 16,
     textAlign: "center"
-  },
-
-  cardLabel: {
-    color: "#94a3b8",
-    marginBottom: 10,
-    fontSize: 14
-  },
-
-  cardValue: {
-    color: "white",
-    fontSize: 28,
-    fontWeight: "bold"
   }
 
 };
