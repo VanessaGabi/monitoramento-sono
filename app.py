@@ -21,8 +21,8 @@ contador_frames = 0
 # AJUSTES DETECÇÃO
 # =========================
 
-LIMITE = 12
-EAR_LIMIAR = 0.23
+LIMITE = 5
+EAR_LIMIAR = 0.26
 
 # -----------------------
 # MEDIAPIPE
@@ -271,21 +271,24 @@ def processar():
 
         dados["ear"] = ear
 
-        print("EAR:", ear)
-
         # =========================
         # DETECÇÃO SONOLÊNCIA
         # =========================
 
-        if ear < EAR_LIMIAR:
+        print("EAR:", ear)
+
+        if ear <= EAR_LIMIAR:
 
             contador_frames += 1
 
+            print("OLHO FECHADO")
+
         else:
 
-            contador_frames = 0
+            if contador_frames > 0:
+                contador_frames -= 1
 
-        print("Frames fechados:", contador_frames)
+        print("CONTADOR:", contador_frames)
 
         # =========================
         # STATUS
@@ -296,7 +299,7 @@ def processar():
             dados["sonolencia"] = True
             dados["nivel"] = "critico"
 
-        elif ear < EAR_LIMIAR:
+        elif ear <= EAR_LIMIAR:
 
             dados["sonolencia"] = False
             dados["nivel"] = "atencao"
