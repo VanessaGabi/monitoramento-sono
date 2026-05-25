@@ -24,9 +24,9 @@ contador_frames = 0
 LIMITE = 5
 EAR_LIMIAR = 0.26
 
-# -----------------------
+# =========================
 # MEDIAPIPE
-# -----------------------
+# =========================
 
 face_mesh = None
 
@@ -39,9 +39,12 @@ try:
     face_mesh = mp_face_mesh.FaceMesh(
         static_image_mode=False,
         max_num_faces=1,
-        refine_landmarks=False,
-        min_detection_confidence=0.5,
-        min_tracking_confidence=0.5
+
+        # melhora rastreamento dos olhos
+        refine_landmarks=True,
+
+        min_detection_confidence=0.7,
+        min_tracking_confidence=0.7
     )
 
     print("MediaPipe carregado com sucesso")
@@ -49,21 +52,20 @@ try:
 except Exception as e:
 
     print("Erro MediaPipe:", str(e))
-
     face_mesh = None
 
 
-# -----------------------
+# =========================
 # LANDMARKS OLHOS
-# -----------------------
+# =========================
 
 OLHO_ESQ = [33, 160, 158, 133, 153, 144]
 OLHO_DIR = [362, 385, 387, 263, 373, 380]
 
 
-# -----------------------
+# =========================
 # FUNÇÕES EAR
-# -----------------------
+# =========================
 
 def calcular_distancia(p1, p2):
 
@@ -74,32 +76,41 @@ def calcular_distancia(p1, p2):
 
 def calcular_ear(face, olho):
 
-    p1 = face[olho[0]]
-    p2 = face[olho[1]]
-    p3 = face[olho[2]]
-    p4 = face[olho[3]]
-    p5 = face[olho[4]]
-    p6 = face[olho[5]]
+    try:
 
-    vertical1 = calcular_distancia(p2, p6)
-    vertical2 = calcular_distancia(p3, p5)
+        p1 = face[olho[0]]
+        p2 = face[olho[1]]
+        p3 = face[olho[2]]
+        p4 = face[olho[3]]
+        p5 = face[olho[4]]
+        p6 = face[olho[5]]
 
-    horizontal = calcular_distancia(p1, p4)
+        vertical1 = calcular_distancia(p2, p6)
+        vertical2 = calcular_distancia(p3, p5)
 
-    if horizontal == 0:
+        horizontal = calcular_distancia(p1, p4)
+
+        if horizontal == 0:
+            return 0.0
+
+        ear = (
+            vertical1 + vertical2
+        ) / (
+            2.0 * horizontal
+        )
+
+        return float(ear)
+
+    except Exception as e:
+
+        print("Erro EAR:", e)
+
         return 0.0
 
-    ear = (
-        (vertical1 + vertical2)
-        / (2.0 * horizontal)
-    )
 
-    return ear
-
-
-# -----------------------
+# =========================
 # ROTAS
-# -----------------------
+# =========================
 
 @app.route("/")
 def home():
@@ -122,11 +133,14 @@ def app_front():
     )
 
 
-# -----------------------
-# PROCESSAMENTO REAL
-# -----------------------
+# =========================
+# PROCESSAMENTO
+# =========================
 
-@app.route("/processar", methods=["POST"])
+@app.route(
+    "/processar",
+    methods=["POST"]
+)
 def processar():
 
     global dados
@@ -134,19 +148,11 @@ def processar():
 
     try:
 
-        # =========================
-        # MEDIAPIPE
-        # =========================
-
         if face_mesh is None:
 
             return jsonify({
                 "erro": "MediaPipe não carregado"
             })
-
-        # =========================
-        # RECEBE IMAGEM
-        # =========================
 
         body = request.get_json()
 
@@ -166,7 +172,9 @@ def processar():
 
         encoded = image.split(",")[1]
 
-        img_bytes = base64.b64decode(encoded)
+        img_bytes = base64.b64decode(
+            encoded
+        )
 
         np_arr = np.frombuffer(
             img_bytes,
@@ -178,21 +186,20 @@ def processar():
             cv2.IMREAD_COLOR
         )
 
-        # =========================
-        # VALIDA FRAME
-        # =========================
-
         if frame is None:
 
             return jsonify({
                 "erro": "frame inválido"
             })
 
-        # =========================
-        # MELHORIAS IMAGEM
-        # =========================
+        # =====================
+        # AJUSTES FRAME
+        # =====================
 
-        frame = cv2.flip(frame, 1)
+        frame = cv2.flip(
+            frame,
+            1
+        )
 
         frame = cv2.resize(
             frame,
@@ -201,8 +208,8 @@ def processar():
 
         frame = cv2.convertScaleAbs(
             frame,
-            alpha=1.2,
-            beta=10
+            alpha=1.0,
+            beta=0
         )
 
         rgb = cv2.cvtColor(
@@ -210,17 +217,21 @@ def processar():
             cv2.COLOR_BGR2RGB
         )
 
-        # =========================
+        # =====================
         # PROCESSA FACE
-        # =========================
+        # =====================
 
-        results = face_mesh.process(rgb)
+        print("\nPROCESSANDO FRAME")
 
-        # =========================
-        # SEM ROSTO
-        # =========================
+        results = face_mesh.process(
+            rgb
+        )
 
         if not results.multi_face_landmarks:
+
+            print(
+                "NENHUM ROSTO DETECTADO"
+            )
 
             contador_frames = 0
 
@@ -228,30 +239,54 @@ def processar():
             dados["sonolencia"] = False
             dados["nivel"] = "normal"
 
-            return jsonify(dados)
+            return jsonify(
+                dados
+            )
 
-        # =========================
-        # FACE DETECTADA
-        # =========================
+        print(
+            "ROSTO DETECTADO"
+        )
 
         face_landmarks = (
-            results.multi_face_landmarks[0]
+            results
+            .multi_face_landmarks[0]
         )
 
         h, w, _ = frame.shape
 
         face = []
 
-        for lm in face_landmarks.landmark:
+        for lm in (
+            face_landmarks
+            .landmark
+        ):
 
-            x = int(lm.x * w)
-            y = int(lm.y * h)
+            x = int(
+                lm.x * w
+            )
 
-            face.append((x, y))
+            y = int(
+                lm.y * h
+            )
 
-        # =========================
-        # CALCULA EAR
-        # =========================
+            face.append(
+                (x, y)
+            )
+
+        if len(face) < 388:
+
+            print(
+                "LANDMARKS INSUFICIENTES"
+            )
+
+            return jsonify({
+                "erro":
+                "landmarks insuficientes"
+            })
+
+        # =====================
+        # EAR
+        # =====================
 
         ear_esq = calcular_ear(
             face,
@@ -263,77 +298,132 @@ def processar():
             OLHO_DIR
         )
 
-        ear = (
-            ear_esq + ear_dir
-        ) / 2.0
+        print(
+            "EAR ESQ:",
+            ear_esq
+        )
 
-        ear = round(float(ear), 3)
+        print(
+            "EAR DIR:",
+            ear_dir
+        )
+
+        ear = (
+            ear_esq +
+            ear_dir
+        ) / 2
+
+        ear = round(
+            max(
+                float(ear),
+                0
+            ),
+            3
+        )
 
         dados["ear"] = ear
 
-        # =========================
-        # DETECÇÃO SONOLÊNCIA
-        # =========================
+        print(
+            "EAR FINAL:",
+            ear
+        )
 
-        print("EAR:", ear)
+        # =====================
+        # SONOLÊNCIA
+        # =====================
 
         if ear <= EAR_LIMIAR:
 
             contador_frames += 1
 
-            print("OLHO FECHADO")
+            print(
+                "OLHO FECHADO"
+            )
 
         else:
 
-            if contador_frames > 0:
-                contador_frames -= 1
+            contador_frames = max(
+                0,
+                contador_frames - 1
+            )
 
-        print("CONTADOR:", contador_frames)
-
-        # =========================
-        # STATUS
-        # =========================
+        print(
+            "CONTADOR:",
+            contador_frames
+        )
 
         if contador_frames >= LIMITE:
 
-            dados["sonolencia"] = True
-            dados["nivel"] = "critico"
+            dados[
+                "sonolencia"
+            ] = True
+
+            dados[
+                "nivel"
+            ] = "critico"
 
         elif ear <= EAR_LIMIAR:
 
-            dados["sonolencia"] = False
-            dados["nivel"] = "atencao"
+            dados[
+                "sonolencia"
+            ] = False
+
+            dados[
+                "nivel"
+            ] = "atencao"
 
         else:
 
-            dados["sonolencia"] = False
-            dados["nivel"] = "normal"
+            dados[
+                "sonolencia"
+            ] = False
 
-        return jsonify(dados)
+            dados[
+                "nivel"
+            ] = "normal"
+
+        return jsonify(
+            dados
+        )
 
     except Exception as e:
 
-        print("ERRO:", e)
+        print(
+            "ERRO:",
+            str(e)
+        )
 
         return jsonify({
-            "erro": str(e),
-            "ear": 0.0,
-            "sonolencia": False,
-            "nivel": "normal"
+
+            "erro":
+            str(e),
+
+            "ear":
+            0.0,
+
+            "sonolencia":
+            False,
+
+            "nivel":
+            "normal"
         })
 
 
-# -----------------------
+# =========================
 # START
-# -----------------------
+# =========================
 
 if __name__ == "__main__":
 
     port = int(
-        os.environ.get("PORT", 5000)
+        os.environ.get(
+            "PORT",
+            5000
+        )
     )
 
     app.run(
         host="0.0.0.0",
-        port=port
+        port=port,
+        debug=True
     )
