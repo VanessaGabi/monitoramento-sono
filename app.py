@@ -16,13 +16,14 @@ dados = {
 }
 
 contador_frames = 0
+historico_ear = []
 
 # =========================
 # AJUSTES DETECÇÃO
 # =========================
 
-LIMITE = 5
-EAR_LIMIAR = 0.26
+LIMITE = 15
+EAR_LIMIAR = 0.22
 
 # =========================
 # MEDIAPIPE
@@ -39,10 +40,7 @@ try:
     face_mesh = mp_face_mesh.FaceMesh(
         static_image_mode=False,
         max_num_faces=1,
-
-        # melhora rastreamento dos olhos
         refine_landmarks=True,
-
         min_detection_confidence=0.7,
         min_tracking_confidence=0.7
     )
@@ -145,6 +143,7 @@ def processar():
 
     global dados
     global contador_frames
+    global historico_ear
 
     try:
 
@@ -192,10 +191,6 @@ def processar():
                 "erro": "frame inválido"
             })
 
-        # =====================
-        # AJUSTES FRAME
-        # =====================
-
         frame = cv2.flip(
             frame,
             1
@@ -206,20 +201,10 @@ def processar():
             (640, 480)
         )
 
-        frame = cv2.convertScaleAbs(
-            frame,
-            alpha=1.0,
-            beta=0
-        )
-
         rgb = cv2.cvtColor(
             frame,
             cv2.COLOR_BGR2RGB
         )
-
-        # =====================
-        # PROCESSA FACE
-        # =====================
 
         print("\nPROCESSANDO FRAME")
 
@@ -234,6 +219,7 @@ def processar():
             )
 
             contador_frames = 0
+            historico_ear.clear()
 
             dados["ear"] = 0.0
             dados["sonolencia"] = False
@@ -261,19 +247,14 @@ def processar():
             .landmark
         ):
 
-            x = int(
-                lm.x * w
-            )
-
-            y = int(
-                lm.y * h
-            )
+            x = lm.x * w
+            y = lm.y * h
 
             face.append(
                 (x, y)
             )
 
-        if len(face) < 388:
+        if len(face) <= 387:
 
             print(
                 "LANDMARKS INSUFICIENTES"
@@ -313,6 +294,17 @@ def processar():
             ear_dir
         ) / 2
 
+        historico_ear.append(
+            float(ear)
+        )
+
+        if len(historico_ear) > 5:
+            historico_ear.pop(0)
+
+        ear = np.mean(
+            historico_ear
+        )
+
         ear = round(
             max(
                 float(ear),
@@ -324,8 +316,7 @@ def processar():
         dados["ear"] = ear
 
         print(
-            "EAR FINAL:",
-            ear
+            f"EAR={ear} | LIMIAR={EAR_LIMIAR} | FRAMES={contador_frames}"
         )
 
         # =====================
@@ -342,10 +333,7 @@ def processar():
 
         else:
 
-            contador_frames = max(
-                0,
-                contador_frames - 1
-            )
+            contador_frames = 0
 
         print(
             "CONTADOR:",
